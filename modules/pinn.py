@@ -26,7 +26,7 @@ class PINN(nn.Module):
         a_layer5       = act_func(self.hidden_layer3(a_layer4))
         out            = self.output_layer(a_layer5)
 
-        out *= window(input_data, 0.4, 0.6, i=self.id)
+        # out *= window(input_data, 0.4, 0.6, i=self.id)
 
         return out
     
