@@ -9,12 +9,12 @@ class PINN(nn.Module):
 
         self.id = id
 
-        self.hidden_layer1      = nn.Linear(1, 20)
-        self.hidden_layer2      = nn.Linear(20, 20)
-        self.hidden_layer3      = nn.Linear(20, 20)
-        # self.hidden_layer4      = nn.Linear(20, 20)
-        # self.hidden_layer5      = nn.Linear(20, 20)
-        self.output_layer       = nn.Linear(20, 1)
+        self.hidden_layer1      = nn.Linear(1, 40)
+        self.hidden_layer2      = nn.Linear(40, 40)
+        self.hidden_layer3      = nn.Linear(40, 40)
+        # self.hidden_layer4      = nn.Linear(40, 40)
+        # self.hidden_layer5      = nn.Linear(40, 40)
+        self.output_layer       = nn.Linear(40, 1)
 
     def forward(self, x):
         input_data     = x
@@ -34,12 +34,15 @@ def sigmoid(x):
     return 1 / (1 + torch.exp(-x))
 
 def window(x, a, b, i):
-    act_func = nn.ReLU()
+    act_func = nn.ReLU6()
     # return sigmoid((x - a) / 0.01) * sigmoid((b - x) / 0.01)
     if i == 1:
-        return act_func((x - a) / 100)
+        return act_func((x - a) * 6 / (b - a)) / 1000
+        # return act_func((x - a) / 100)
     elif i == 0:
-        return act_func((b - x) / 100)
+        return act_func((b - x) * 6 / (b - a)) / 1000
+
+        # return act_func((b - x) / 100)
 
 # def window_test():
 #     x_test = np.arange(100) / 50

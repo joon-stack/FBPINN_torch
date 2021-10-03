@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import torch.autograd as autograd
 
-def make_training_boundary_data(b_size, x=0.0, u=0.0, seed=1004, x_b=None, u_b=None):
+def make_training_boundary_data(b_size, x=0.0, u=0.0, seed=1004, x_b=None, u_b=None, device=None):
     np.random.seed(seed)
 
     x_b_new = np.ones((b_size, 1)) * x
@@ -14,6 +14,7 @@ def make_training_boundary_data(b_size, x=0.0, u=0.0, seed=1004, x_b=None, u_b=N
     
     x_b = torch.cat((x_b, x_b_new), axis=1) if x_b else x_b_new
     u_b = torch.cat((u_b, u_b_new), axis=1) if u_b else u_b_new
+
 
     return x_b, u_b
 
