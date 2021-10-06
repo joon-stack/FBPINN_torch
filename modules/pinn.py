@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
+import matplotlib.pyplot as plt
 
 class PINN(nn.Module):
     def __init__(self, id):
@@ -33,20 +34,30 @@ class PINN(nn.Module):
 def sigmoid(x):
     return 1 / (1 + torch.exp(-x))
 
-def window(x, a, b, i):
+def relu6(x, a, b, i):
     act_func = nn.ReLU6()
+    # act_func = nn.ReLU()
     # return sigmoid((x - a) / 0.01) * sigmoid((b - x) / 0.01)
-    if i == 1:
-        return act_func((x - a) * 6 / (b - a)) / 1000
+    # return act_func((x - a) * 6 / (b - a))
+    if i > 0:
+        return act_func((x - a) * 6 / (b - a)) / 6
         # return act_func((x - a) / 100)
     elif i == 0:
-        return act_func((b - x) * 6 / (b - a)) / 1000
+        return act_func((b - x) * 6 / (b - a)) / 6
+    else:
+        print('Error')
 
-        # return act_func((b - x) / 100)
+def window():
+    pass
 
-# def window_test():
-#     x_test = np.arange(100) / 50
-#     pred = window(x_test, 0.4, 0.6)
-#     plt.plot(x_test, pred)
-#     plt.savefig('./figures/window_test.png')
-#     plt.cla()
+
+def window_test():
+    x_test = torch.from_numpy(np.arange(100) / 25)
+    pred2 = relu6(x_test, 0.4, 0.6, i=0)
+    pred3 = relu6(x_test, 1.4, 1.6, i=0)
+    pred4 = relu6(x_test, 2.4, 2.6, i=0)
+    # plt.plot(x_test, pred, label='A')
+    plt.plot(x_test, pred2 * pred3 * pred4, label='B')
+    plt.legend()
+    plt.savefig('./figures/window_test.png')
+    plt.cla()

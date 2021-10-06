@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from modules.pinn import *
 from modules.generate_data import *
 
-class BoundaryCondition():
+class BCs():
     def __init__(self, size, x, u, deriv):
         self.size = size
         self.x = x
@@ -29,6 +29,8 @@ class CombinedPINN(nn.Module):
         self.domains = [{} for _ in range(self.domain_no)]
         self.boundaries = [{} for _ in range(self.domain_no - 1)]
         self.windows = [torch.zeros(1) for _ in range(self.domain_no)]
+
+        self.window_made = False
     
     def module_update(self, dict):
         self.__dict__['_modules'].update(dict)
@@ -72,9 +74,6 @@ class CombinedPINN(nn.Module):
         plt.legend()
         plt.savefig('./figures/domain_test.png')
 
-    def generate_bcs(self):
-        pass
-
     def make_windows(self, x):
         bds = self.boundaries
         dms = self.domains
@@ -90,6 +89,9 @@ class CombinedPINN(nn.Module):
                     self.windows[i] *= relu6(x, lb, rb, i=idx)
                 if idx > 0:
                     idx -= 1
+            self.windows[i] /= 100
+        
+        self.window_made = True
 
     def plot_windows(self):
         plt.cla()
@@ -98,21 +100,35 @@ class CombinedPINN(nn.Module):
         for i in range(len(windows)):
             plt.plot(x_test, windows[i], label=i)
         plt.legend()
-        plt.savefig("./figures/window_test")
+        plt.savefig("./figures/window_test.png")
 
-
+    def plot_separate_models(self, x):
+        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
+        plt.cla()
+        models = self.get_models()
+        for i, key in enumerate(models.keys()):
+            model = models[key]
+            label = 'Model_{}'.format(i)
+            x_cpu = x.cpu().detach().numpy()
+            self.make_windows(x)
+            result = (model(x) * self.windows[i]).cpu().detach().numpy()
+            plt.plot(x_cpu, result, label=label)
+        plt.legend()
+        plt.savefig('./figures/separate_models.png')
 
     def forward(self, x):
         out = 0.0
         models = self.get_models()
+        self.make_windows(x)
         for i in range(self.domain_no - 1):
             lb = self.boundaries[i]['lb']
             rb = self.boundaries[i]['rb']
             model1 = models["Model{}".format(i+1)]
             model2 = models["Model{}".format(i+2)]
-            # print(window(x, lb, rb, model2.id))
-            # print(model2(x))
-            out += model1(x) * window(x, lb, rb, model1.id) + model2(x) * window(x, lb, rb, model2.id)
+            # print(x)
+            # print(model1(x))
+            # print(self.windows[i])
+            out += model1(x) * self.windows[i] + model2(x) * self.windows[i + 1]
         return out
 
 
@@ -124,15 +140,15 @@ def train():
     domain_no = 2
 
     # Set the global left & right boundary of the calculation domain
-    lb = 0.0
-    rb = 1.0
+    global_lb = 0.0
+    global_rb = 1.0
 
     # Set the size of the overlapping area between domains
-    overlap_size = 0.1
+    overlap_size = 0.2
 
     # Initialize combined PINNs
-    test = CombinedPINN(domain_no, lb, rb, overlap_size)
-    sample = {'Model{}'.format(i+1): PINN(i) for i in range(3)}
+    test = CombinedPINN(domain_no, global_lb, global_rb, overlap_size)
+    sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
     test.module_update(sample)
     test.make_domains()
     test.make_boundaries()
@@ -143,19 +159,31 @@ def train():
     test.make_windows(x_test)
     test.plot_windows()
 
+    
     # Prepare to train
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
     b_size = 100
     f_size = 10000
     epochs = 10000
-    test = nn.DataParallel(test)
+    # test = nn.DataParallel(test)
     test.to(device)
+
+    # Set boundary conditions
+    bcs = []
+    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.6, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=0.6, u=0.0, deriv=1))
 
     optims = []
     schedulers = []
 
-    models = test._modules['module']._modules
+    # models = test._modules['module']._modules
+    models = test._modules
+    # print(models)
 
     for key in models.keys():
         model = models[key]
@@ -163,50 +191,54 @@ def train():
         optims.append(optim)
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=100, verbose=True))
 
-    dms = test.module.domains
-    bds = test.module.boundaries
+    # dms = test.module.domains
+    # bds = test.module.boundaries
+    dms = test.domains
+    bds = test.boundaries
+    # Penalty term
+    w = 1000
 
     x_bs = []
     u_bs = []
     x_fs = []
     u_fs = []
 
+    x_derivs = []
+    x_derivs_train = [[] for _ in range(domain_no)]
+
     x_bs_train = [[] for _ in range(domain_no)]
     u_bs_train = [[] for _ in range(domain_no)]
     
-    x_b, u_b = make_training_boundary_data(b_size // 3, x=0.0, u=0.0)
-    x_b_2, u_b_2 = make_training_boundary_data(b_size // 3, x=0.5, u=0.0)
-    x_b_3, u_b_3 = make_training_boundary_data(b_size // 3, x=1.0, u=0.0)
-
-    x_bs.append(x_b.to(device))
-    x_bs.append(x_b_2.to(device))
-    x_bs.append(x_b_3.to(device))
-
-    u_bs.append(u_b.to(device))
-    u_bs.append(u_b_2.to(device))
-    u_bs.append(u_b_3.to(device))
+    for bc in bcs:
+        x_b, u_b = make_training_boundary_data(b_size=bc.size, x=bc.x, u=bc.u)
+        x_bs.append(x_b.to(device))
+        u_bs.append(u_b.to(device))
+        x_derivs.append(bc.deriv)
 
     for i, dm in enumerate(dms):
         lb = dm['lb']
         rb = dm['rb']
-        x_f, u_f = make_training_collocation_data(f_size // domain_no, x_lb=lb, x_rb=rb)
+        # print(lb, rb)
+        x_f, u_f = make_training_collocation_data(f_size, x_lb=lb, x_rb=rb)
         x_fs.append(x_f.to(device))
         u_fs.append(u_f.to(device))
 
-        for x_b in x_bs:
+        for j, x_b in enumerate(x_bs):
+            u_b = u_bs[j]
+            x_deriv = x_derivs[j]
             x = x_b[0]
             if lb <= x <= rb:
                 x_bs_train[i].append(x_b)
                 u_bs_train[i].append(u_b)
-
-    # print(x_bs_train)
-    # print(u_bs_train)
+                x_derivs_train[i].append(x_deriv)
 
     loss_save = np.inf
     
     loss_b_plt = [[] for _ in range(domain_no)]
     loss_f_plt = [[] for _ in range(domain_no)]
     loss_plt   = [[] for _ in range(domain_no)]
+
+    x_plt = torch.from_numpy(np.arange((global_rb - global_lb) * 1000) / 1000 + global_lb) 
 
     for epoch in range(epochs):
         for i in range(domain_no):
@@ -221,34 +253,23 @@ def train():
 
             x_bs = x_bs_train[i]
             u_bs = u_bs_train[i]
-            x_fs = x_fs[i]
+            x_derivs = x_derivs_train[i]
 
-            for i, x_b in enumerate(x_bs):
-                u_b = u_bs[i]
-                loss_b += loss_func(test(x_b), u_b) * 1000
+            for j, x_b in enumerate(x_bs):
+                u_b = u_bs[j]
+                x_deriv = x_derivs[j]
+                loss_b += loss_func(calc_deriv(x_b, test(x_b), x_deriv), u_b) * w
 
-
-
-            if i == 0:
-                loss_b += loss_func(model(x_b), u_b) * 1000
-                loss_b += loss_func(model(x_b_2), u_b_2) * 1000
-                loss_b += loss_func(calc_deriv(x_b, model(x_b), 2), u_b) * 1000
-                loss_b += loss_func(calc_deriv(x_b_2, model(x_b_2), 1), u_b_2) * 1000
-                loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) - 1, u_f)
-            elif i == 1:
-                loss_b += loss_func(model(x_b_3), u_b_3) * 1000
-                loss_b += loss_func(model(x_b_2), u_b_2) * 1000
-                loss_b += loss_func(calc_deriv(x_b_3, model(x_b_3), 2), u_b_3) * 1000
-                loss_b += loss_func(calc_deriv(x_b_2, model(x_b_2), 1), u_b_2) * 1000
-                loss_f += loss_func(calc_deriv(x_f_2, model(x_f_2), 4) - 1, u_f_2)
-            
+            x_f = x_fs[i]
+            u_f = u_fs[i]
+            loss_f += loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f)
+          
             loss = loss_f + loss_b
             loss_sum += loss
 
             loss_b_plt[i].append(loss_b.item())
             loss_f_plt[i].append(loss_f.item())
             loss_plt[i].append(loss.item())
-
             
             loss.backward()
 
@@ -256,7 +277,7 @@ def train():
             scheduler.step(loss)
 
             with torch.no_grad():
-                model.eval()
+                test.eval()
             
             print("Epoch: {0} | LOSS: {1:.5f}".format(epoch+1, loss.item()))
 
@@ -265,19 +286,70 @@ def train():
 
         if loss_sum < loss_save:
             loss_save = loss_sum
-            torch.save(model.state_dict(), './models/cpinn.data')
+            torch.save(test.state_dict(), './models/cpinn.data')
             print(".......model updated (epoch = ", epoch+1, ")")
         
         if loss_sum < 0.00001:
             break
 
         if epoch % 50 == 1:
-            draw()
+            draw(domain_no, global_lb, global_rb, overlap_size)
+            test.plot_separate_models(x_plt)
             
     print("Elapsed Time: {} s".format(time.time() - since))
     print("DONE")
     
+def draw_convergence(epoch, loss_b, loss_f, loss, id):
+    plt.cla()
+    x = np.arange(epoch)
+    # print(epoch)
+    # print(loss_b)
+    # print(loss_f)
+    # print(loss)
+
+    plt.plot(x, np.array(loss_b), label='Loss_B')
+    plt.plot(x, np.array(loss_f), label='Loss_F')
+    plt.plot(x, np.array(loss), label='Loss')
+    plt.yscale('log')
+    plt.legend()
+    plt.savefig('./figures/convergence_{}.png'.format(id))
+
+def draw(domain_no, lb, rb, overlap_size):
+    model = CombinedPINN(domain_no, lb, rb, overlap_size)
+    sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
+    model.module_update(sample)
+    model.make_domains()
+    model.make_boundaries()
+    model.cuda()
+    model_path = "./models/cpinn.data"
+    state_dict = torch.load(model_path)
+    state_dict = {m.replace('module.', '') : i for m, i in state_dict.items()}
+    model.load_state_dict(state_dict)
+
+    x_test_plt = np.arange(10001)/10000
+    x_test = torch.from_numpy(x_test_plt).unsqueeze(0).T.type(torch.FloatTensor).cuda()
     
+    plt.cla()
+
+    pred = model(x_test).cpu().detach().numpy()
+
+    plt.plot(x_test_plt, pred, 'b', label='CPINN')
+    # plt.plot(x_test, ex, 'r--', label='Exact')
+    plt.legend()
+    plt.savefig('./figures/test.png')
+
+    plt.cla()
+    
+    # plt.plot(x_test_plt, model.module.out_A(x_test).cpu().detach().numpy(), 'b', label='A')
+    # plt.plot(x_test_plt, model.module.out_B(x_test).cpu().detach().numpy(), 'r--', label='B')
+    # plt.legend()
+    # plt.savefig('./figures/separate.png')
+
+    # plt.cla()
+    # plt.plot(x_test_plt, window(x_test, 1/3, 2/3, i=0).cpu().detach().numpy(), 'b', label='A')
+    # plt.plot(x_test_plt, window(x_test, 1/3, 2/3, i=1).cpu().detach().numpy(), 'r--', label='B')
+    # plt.legend()
+    # plt.savefig('./figures/window.png')
 
 
 
