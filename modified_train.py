@@ -60,6 +60,7 @@ class CombinedPINN(nn.Module):
     def plot_domains_and_boundaries(self):
         dms = self.domains
         bds = self.boundaries
+
         plt.cla()
         for i, dm in enumerate(dms):
             lb = dm['lb']
@@ -78,6 +79,8 @@ class CombinedPINN(nn.Module):
         bds = self.boundaries
         dms = self.domains
         size = len(dms)
+        if size == 1:
+            self.windows[0] = torch.ones(x.shape).cuda()
         for i in range(size):
             idx = i
             for j in range(size - 1):
@@ -85,8 +88,10 @@ class CombinedPINN(nn.Module):
                 rb = bds[j]['rb']
                 if j == 0:
                     self.windows[i] = relu6(x, lb, rb, i=idx)
+                    # self.windows[i] = sigmoid(x, lb, rb, i=idx)
                 else:
                     self.windows[i] *= relu6(x, lb, rb, i=idx)
+                    # self.windows[i] *= sigmoid(x, lb, rb, i=idx)
                 if idx > 0:
                     idx -= 1
             self.windows[i] /= 100
@@ -98,7 +103,8 @@ class CombinedPINN(nn.Module):
         windows = self.windows
         x_test = torch.from_numpy(np.arange(100) / 100)
         for i in range(len(windows)):
-            plt.plot(x_test, windows[i], label=i)
+            window = windows[i].cpu().detach().numpy()
+            plt.plot(x_test, window, label=i)
         plt.legend()
         plt.savefig("./figures/window_test.png")
 
@@ -119,18 +125,15 @@ class CombinedPINN(nn.Module):
     def forward(self, x):
         out = 0.0
         models = self.get_models()
+        if self.domain_no == 1:
+            model1 = models["Model1"]
+            return model1(x)
         self.make_windows(x)
         for i in range(self.domain_no - 1):
-            lb = self.boundaries[i]['lb']
-            rb = self.boundaries[i]['rb']
             model1 = models["Model{}".format(i+1)]
             model2 = models["Model{}".format(i+2)]
-            # print(x)
-            # print(model1(x))
-            # print(self.windows[i])
             out += model1(x) * self.windows[i] + model2(x) * self.windows[i + 1]
         return out
-
 
 def train():
     # Set the starting time
@@ -172,11 +175,11 @@ def train():
     # Set boundary conditions
     bcs = []
     bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.6, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.6, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=1))
 
     optims = []
     schedulers = []
@@ -195,6 +198,7 @@ def train():
     # bds = test.module.boundaries
     dms = test.domains
     bds = test.boundaries
+
     # Penalty term
     w = 1000
 
@@ -218,7 +222,6 @@ def train():
     for i, dm in enumerate(dms):
         lb = dm['lb']
         rb = dm['rb']
-        # print(lb, rb)
         x_f, u_f = make_training_collocation_data(f_size, x_lb=lb, x_rb=rb)
         x_fs.append(x_f.to(device))
         u_fs.append(u_f.to(device))
@@ -241,7 +244,9 @@ def train():
     x_plt = torch.from_numpy(np.arange((global_rb - global_lb) * 1000) / 1000 + global_lb) 
 
     for epoch in range(epochs):
+        start = time.time()
         for i in range(domain_no):
+            start2 = time.time()
             optim = optims[i]
             scheduler = schedulers[i]
             optim.zero_grad()
@@ -254,15 +259,19 @@ def train():
             x_bs = x_bs_train[i]
             u_bs = u_bs_train[i]
             x_derivs = x_derivs_train[i]
-
+            start2 = time.time()
             for j, x_b in enumerate(x_bs):
                 u_b = u_bs[j]
                 x_deriv = x_derivs[j]
                 loss_b += loss_func(calc_deriv(x_b, test(x_b), x_deriv), u_b) * w
+            print("After calculating loss_b {:.3f}s".format(time.time() - start2))
 
+            start2 = time.time()
             x_f = x_fs[i]
             u_f = u_fs[i]
             loss_f += loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f)
+
+            print("After calculating loss_f {:.3f}s".format(time.time() - start2))
           
             loss = loss_f + loss_b
             loss_sum += loss
@@ -270,16 +279,14 @@ def train():
             loss_b_plt[i].append(loss_b.item())
             loss_f_plt[i].append(loss_f.item())
             loss_plt[i].append(loss.item())
-            
             loss.backward()
-
             optim.step()
             scheduler.step(loss)
 
             with torch.no_grad():
                 test.eval()
             
-            print("Epoch: {0} | LOSS: {1:.5f}".format(epoch+1, loss.item()))
+            # print("Epoch: {0} | LOSS: {1:.5f}".format(epoch+1, loss.item()))
 
             if epoch % 50 == 1:
                 draw_convergence(epoch + 1, loss_b_plt[i], loss_f_plt[i], loss_plt[i], i)
@@ -293,8 +300,10 @@ def train():
             break
 
         if epoch % 50 == 1:
-            draw(domain_no, global_lb, global_rb, overlap_size)
+            draw(domain_no, global_lb, global_rb, overlap_size, 4)
             test.plot_separate_models(x_plt)
+        
+        print("After 1 epoch {:.3f}s".format(time.time() - start))
             
     print("Elapsed Time: {} s".format(time.time() - since))
     print("DONE")
@@ -302,10 +311,6 @@ def train():
 def draw_convergence(epoch, loss_b, loss_f, loss, id):
     plt.cla()
     x = np.arange(epoch)
-    # print(epoch)
-    # print(loss_b)
-    # print(loss_f)
-    # print(loss)
 
     plt.plot(x, np.array(loss_b), label='Loss_B')
     plt.plot(x, np.array(loss_f), label='Loss_F')
@@ -314,7 +319,7 @@ def draw_convergence(epoch, loss_b, loss_f, loss, id):
     plt.legend()
     plt.savefig('./figures/convergence_{}.png'.format(id))
 
-def draw(domain_no, lb, rb, overlap_size):
+def draw(domain_no, lb, rb, overlap_size, deriv):
     model = CombinedPINN(domain_no, lb, rb, overlap_size)
     sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
     model.module_update(sample)
@@ -328,28 +333,16 @@ def draw(domain_no, lb, rb, overlap_size):
 
     x_test_plt = np.arange(10001)/10000
     x_test = torch.from_numpy(x_test_plt).unsqueeze(0).T.type(torch.FloatTensor).cuda()
+    x_test.requires_grad = True
     
-    plt.cla()
+    for i in range(deriv + 1):
+        
+        pred = calc_deriv(x_test, model(x_test), i).cpu().detach().numpy()
+        plt.cla()
+        plt.plot(x_test_plt, pred, 'b', label='CPINN')
+        plt.legend()
+        plt.savefig('./figures/test_{}.png'.format(i))
 
-    pred = model(x_test).cpu().detach().numpy()
-
-    plt.plot(x_test_plt, pred, 'b', label='CPINN')
-    # plt.plot(x_test, ex, 'r--', label='Exact')
-    plt.legend()
-    plt.savefig('./figures/test.png')
-
-    plt.cla()
-    
-    # plt.plot(x_test_plt, model.module.out_A(x_test).cpu().detach().numpy(), 'b', label='A')
-    # plt.plot(x_test_plt, model.module.out_B(x_test).cpu().detach().numpy(), 'r--', label='B')
-    # plt.legend()
-    # plt.savefig('./figures/separate.png')
-
-    # plt.cla()
-    # plt.plot(x_test_plt, window(x_test, 1/3, 2/3, i=0).cpu().detach().numpy(), 'b', label='A')
-    # plt.plot(x_test_plt, window(x_test, 1/3, 2/3, i=1).cpu().detach().numpy(), 'r--', label='B')
-    # plt.legend()
-    # plt.savefig('./figures/window.png')
 
 
 
