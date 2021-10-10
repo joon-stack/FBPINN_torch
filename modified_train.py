@@ -6,148 +6,55 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
+from torch.utils.data import Dataset
+from torch.utils.data import Dataloader
+
 from modules.pinn import *
 from modules.generate_data import *
 
-class BCs():
-    def __init__(self, size, x, u, deriv):
-        self.size = size
+class BoundaryDataset(Dataset):
+    def __init__(self, x, u, d):
         self.x = x
         self.u = u
-        self.deriv = deriv
-
-class CombinedPINN(nn.Module):
-    def __init__(self, domain_no, lb, rb, overlap_size):
-        super(CombinedPINN, self).__init__()
-        self.domain_no = domain_no
-        self.lb = lb
-        self.rb = rb
-        self.overlap_size = overlap_size
-        self.outer_domain_size = 0.0
-        self.inner_domain_size = 0.0
-
-        self.domains = [{} for _ in range(self.domain_no)]
-        self.boundaries = [{} for _ in range(self.domain_no - 1)]
-        self.windows = [torch.zeros(1) for _ in range(self.domain_no)]
-
-        self.window_made = False
+        self.d = d
     
-    def module_update(self, dict):
-        self.__dict__['_modules'].update(dict)
-
-    def get_models(self):
-        return self.__dict__['_modules']
-
-    def make_domains(self):
-        length = self.rb - self.lb
-        length -= self.overlap_size
-        self.outer_domain_size = length / self.domain_no
-        self.inner_domain_size = self.outer_domain_size - self.overlap_size
-        
-        self.domains[0]['lb'] = self.lb
-        self.domains[0]['rb'] = self.lb + self.outer_domain_size + self.overlap_size
-        self.domains[self.domain_no - 1]['lb'] = self.rb - self.outer_domain_size - self.overlap_size
-        self.domains[self.domain_no - 1]['rb'] = self.rb
-        for i in range(1, self.domain_no - 1):
-            self.domains[i]['lb'] = self.domains[i - 1]['rb'] - self.overlap_size
-            self.domains[i]['rb'] = self.domains[i]['lb'] + self.inner_domain_size + self.overlap_size * 2
+    def __len__(self):
+        return len(self.x)
     
-    def make_boundaries(self):
-        for i in range(self.domain_no - 1):
-            self.boundaries[i]['lb'] = self.domains[i + 1]['lb']
-            self.boundaries[i]['rb'] = self.boundaries[i]['lb'] + self.overlap_size
+    def __getitem__(self, idx):
+        x = torch.FloatTensor(self.x[idx])
+        u = torch.FloatTensor(self.u[idx])
+        d = self.d[idx]
 
-    def plot_domains_and_boundaries(self):
-        dms = self.domains
-        bds = self.boundaries
+        return x, u, d
 
-        plt.cla()
-        for i, dm in enumerate(dms):
-            lb = dm['lb']
-            rb = dm['rb']
-            plt.plot((lb, rb), (0, 0), '--', label='Domain {}'.format(i))
-        
-        for i, bd in enumerate(bds):
-            lb = bd['lb']
-            rb = bd['rb']
-            plt.plot((lb, rb), (0, 0), label='Boundary {}'.format(i), linewidth=4)
-        
-        plt.legend()
-        plt.savefig('./figures/domain_test.png')
+class PDEDataset(Dataset):
+    def __init__(self, x, u):
+        self.x = x
+        self.u = u
+    
+    def __len__(self):
+        return len(self.x)
+    
+    def __getitem__(self, idx):
+        x = torch.FloatTensor(self.x[idx])
+        u = torch.FloatTensor(self.u[idx])
 
-    def make_windows(self, x):
-        bds = self.boundaries
-        dms = self.domains
-        size = len(dms)
-        if size == 1:
-            self.windows[0] = torch.ones(x.shape).cuda()
-        for i in range(size):
-            idx = i
-            for j in range(size - 1):
-                lb = bds[j]['lb']
-                rb = bds[j]['rb']
-                if j == 0:
-                    self.windows[i] = relu6(x, lb, rb, i=idx)
-                    # self.windows[i] = sigmoid(x, lb, rb, i=idx)
-                else:
-                    self.windows[i] *= relu6(x, lb, rb, i=idx)
-                    # self.windows[i] *= sigmoid(x, lb, rb, i=idx)
-                if idx > 0:
-                    idx -= 1
-            self.windows[i] /= 100
-        
-        self.window_made = True
-
-    def plot_windows(self):
-        plt.cla()
-        windows = self.windows
-        x_test = torch.from_numpy(np.arange(100) / 100)
-        for i in range(len(windows)):
-            window = windows[i].cpu().detach().numpy()
-            plt.plot(x_test, window, label=i)
-        plt.legend()
-        plt.savefig("./figures/window_test.png")
-
-    def plot_separate_models(self, x):
-        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
-        plt.cla()
-        models = self.get_models()
-        for i, key in enumerate(models.keys()):
-            model = models[key]
-            label = 'Model_{}'.format(i)
-            x_cpu = x.cpu().detach().numpy()
-            self.make_windows(x)
-            result = (model(x) * self.windows[i]).cpu().detach().numpy()
-            plt.plot(x_cpu, result, label=label)
-        plt.legend()
-        plt.savefig('./figures/separate_models.png')
-
-    def forward(self, x):
-        out = 0.0
-        models = self.get_models()
-        if self.domain_no == 1:
-            model1 = models["Model1"]
-            return model1(x)
-        self.make_windows(x)
-        for i in range(self.domain_no - 1):
-            model1 = models["Model{}".format(i+1)]
-            model2 = models["Model{}".format(i+2)]
-            out += model1(x) * self.windows[i] + model2(x) * self.windows[i + 1]
-        return out
+        return x, u
 
 def train():
     # Set the starting time
     since = time.time()
 
     # Set the number of domains
-    domain_no = 2
+    domain_no = 1
 
     # Set the global left & right boundary of the calculation domain
-    global_lb = 0.0
+    global_lb = -1.0
     global_rb = 1.0
 
     # Set the size of the overlapping area between domains
-    overlap_size = 0.2
+    overlap_size = 0.1
 
     # Initialize combined PINNs
     test = CombinedPINN(domain_no, global_lb, global_rb, overlap_size)
@@ -155,11 +62,10 @@ def train():
     test.module_update(sample)
     test.make_domains()
     test.make_boundaries()
+    test.make_windows()
     test.plot_domains_and_boundaries()
 
     # Test windows
-    x_test = torch.from_numpy(np.arange(100) / 100)
-    test.make_windows(x_test)
     test.plot_windows()
 
     
@@ -174,12 +80,22 @@ def train():
 
     # Set boundary conditions
     bcs = []
-    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=-1.0, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=-1.0, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=1))
+
+    
+    # bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.3, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=2))
+    # bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
+    # bcs.append(BCs(b_size, x=0.3, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=0.7, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.7, u=0.0, deriv=1))
 
     optims = []
     schedulers = []
@@ -190,9 +106,9 @@ def train():
 
     for key in models.keys():
         model = models[key]
-        optim = torch.optim.Adam(model.parameters(), lr=0.001)
+        optim = torch.optim.Adam(model.parameters(), lr=0.01)
         optims.append(optim)
-        schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=100, verbose=True))
+        schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=1000, verbose=True))
 
     # dms = test.module.domains
     # bds = test.module.boundaries
@@ -200,7 +116,8 @@ def train():
     bds = test.boundaries
 
     # Penalty term
-    w = 1000
+    w_b = 1000
+    w_f = 1
 
     x_bs = []
     u_bs = []
@@ -250,28 +167,33 @@ def train():
             optim = optims[i]
             scheduler = schedulers[i]
             optim.zero_grad()
-            loss_b = torch.zeros(1).to(device)
-            loss_f = torch.zeros(1).to(device)
+            loss_b = 0.0
+            loss_f = 0.0
+            loss_sum = 0.0
             loss_func = nn.MSELoss()
+            
 
-            loss_sum = torch.zeros(1).to(device)
 
             x_bs = x_bs_train[i]
             u_bs = u_bs_train[i]
             x_derivs = x_derivs_train[i]
+
+            boundary_dataset = BoundaryDataset(x_bs, u_bs, x_derivs)
+            pde_dataset      = PDEDataset(x_bs, u_bs)
             start2 = time.time()
             for j, x_b in enumerate(x_bs):
                 u_b = u_bs[j]
                 x_deriv = x_derivs[j]
-                loss_b += loss_func(calc_deriv(x_b, test(x_b), x_deriv), u_b) * w
-            print("After calculating loss_b {:.3f}s".format(time.time() - start2))
+                loss_b += loss_func(calc_deriv(x_b, test(x_b), x_deriv), u_b) * w_b
+            # print("{:.3f}s".format(time.time() - start2))
+            # print("After calculating loss_b {:.3f}s".format(time.time() - start2))
 
             start2 = time.time()
             x_f = x_fs[i]
             u_f = u_fs[i]
-            loss_f += loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f)
+            loss_f += loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f) * w_f
 
-            print("After calculating loss_f {:.3f}s".format(time.time() - start2))
+            # print("After calculating loss_f {:.3f}s".format(time.time() - start2))
           
             loss = loss_f + loss_b
             loss_sum += loss
@@ -282,14 +204,18 @@ def train():
             loss.backward()
             optim.step()
             scheduler.step(loss)
+            
+            if epoch % 500 == 1:
+                draw(domain_no, global_lb, global_rb, overlap_size, 0)
+                test.plot_separate_models(x_plt)
 
             with torch.no_grad():
                 test.eval()
             
-            # print("Epoch: {0} | LOSS: {1:.5f}".format(epoch+1, loss.item()))
+                print("Epoch: {0} | LOSS: {1:.5f}".format(epoch+1, loss.item()))
 
-            if epoch % 50 == 1:
-                draw_convergence(epoch + 1, loss_b_plt[i], loss_f_plt[i], loss_plt[i], i)
+                if epoch % 500 == 1:
+                    draw_convergence(epoch + 1, loss_b_plt[i], loss_f_plt[i], loss_plt[i], i)
 
         if loss_sum < loss_save:
             loss_save = loss_sum
@@ -299,11 +225,9 @@ def train():
         if loss_sum < 0.00001:
             break
 
-        if epoch % 50 == 1:
-            draw(domain_no, global_lb, global_rb, overlap_size, 4)
-            test.plot_separate_models(x_plt)
+                
         
-        print("After 1 epoch {:.3f}s".format(time.time() - start))
+        # print("After 1 epoch {:.3f}s".format(time.time() - start))
             
     print("Elapsed Time: {} s".format(time.time() - since))
     print("DONE")
@@ -331,28 +255,28 @@ def draw(domain_no, lb, rb, overlap_size, deriv):
     state_dict = {m.replace('module.', '') : i for m, i in state_dict.items()}
     model.load_state_dict(state_dict)
 
-    x_test_plt = np.arange(10001)/10000
+    x_test_plt = np.arange(2001)/1000 - 1.0
     x_test = torch.from_numpy(x_test_plt).unsqueeze(0).T.type(torch.FloatTensor).cuda()
     x_test.requires_grad = True
     
-    for i in range(deriv + 1):
+    pred = model(x_test).cpu().detach().numpy()
+    plt.cla()
+    plt.plot(x_test_plt, pred, 'b', label='CPINN')
+    plt.legend()
+    plt.savefig('./figures/test.png')
+
+    # for i in range(deriv + 1):
         
-        pred = calc_deriv(x_test, model(x_test), i).cpu().detach().numpy()
-        plt.cla()
-        plt.plot(x_test_plt, pred, 'b', label='CPINN')
-        plt.legend()
-        plt.savefig('./figures/test_{}.png'.format(i))
-
-
-
-
-
+    #     pred = calc_deriv(x_test, model(x_test), i).cpu().detach().numpy()
+    #     plt.cla()
+    #     plt.plot(x_test_plt, pred, 'b', label='CPINN')
+    #     plt.legend()
+    #     plt.savefig('./figures/test_{}.png'.format(i))
 
 def main():
     train()
     # window_test()
     
-
 if __name__ == "__main__":
     main()
     
