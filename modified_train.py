@@ -7,19 +7,29 @@ import time
 import matplotlib.pyplot as plt
 
 from torch.utils.data import Dataset
-from torch.utils.data import Dataloader
+from torch.utils.data import DataLoader
 
 from modules.pinn import *
 from modules.generate_data import *
 
 class BoundaryDataset(Dataset):
     def __init__(self, x, u, d):
-        self.x = x
-        self.u = u
-        self.d = d
+        self.x = []
+        self.u = []
+        self.d = []
+
+        for a in x:
+            self.x.extend(a)
+        
+        for a in u:
+            self.u.extend(a)
+
+        for a in d:
+            self.d.extend(a)
+
     
     def __len__(self):
-        return len(self.x)
+        return len(self.u)
     
     def __getitem__(self, idx):
         x = torch.FloatTensor(self.x[idx])
@@ -34,7 +44,7 @@ class PDEDataset(Dataset):
         self.u = u
     
     def __len__(self):
-        return len(self.x)
+        return len(self.u)
     
     def __getitem__(self, idx):
         x = torch.FloatTensor(self.x[idx])
@@ -55,6 +65,8 @@ def train():
 
     # Set the size of the overlapping area between domains
     overlap_size = 0.1
+
+    batch_size = 128
 
     # Initialize combined PINNs
     test = CombinedPINN(domain_no, global_lb, global_rb, overlap_size)
@@ -87,15 +99,7 @@ def train():
     bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=1))
 
-    
-    # bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.3, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=2))
-    # bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
-    # bcs.append(BCs(b_size, x=0.3, u=0.0, deriv=1))
-    # bcs.append(BCs(b_size, x=0.7, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.7, u=0.0, deriv=1))
+
 
     optims = []
     schedulers = []
@@ -106,7 +110,7 @@ def train():
 
     for key in models.keys():
         model = models[key]
-        optim = torch.optim.Adam(model.parameters(), lr=0.01)
+        optim = torch.optim.Adam(model.parameters(), lr=0.0001)
         optims.append(optim)
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=1000, verbose=True))
 
@@ -116,7 +120,7 @@ def train():
     bds = test.boundaries
 
     # Penalty term
-    w_b = 1000
+    w_b = 1
     w_f = 1
 
     x_bs = []
@@ -132,16 +136,17 @@ def train():
     
     for bc in bcs:
         x_b, u_b = make_training_boundary_data(b_size=bc.size, x=bc.x, u=bc.u)
-        x_bs.append(x_b.to(device))
-        u_bs.append(u_b.to(device))
-        x_derivs.append(bc.deriv)
+        x_bs.append(x_b)
+        u_bs.append(u_b)
+        x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv)
+
 
     for i, dm in enumerate(dms):
         lb = dm['lb']
         rb = dm['rb']
         x_f, u_f = make_training_collocation_data(f_size, x_lb=lb, x_rb=rb)
-        x_fs.append(x_f.to(device))
-        u_fs.append(u_f.to(device))
+        x_fs.append(x_f)
+        u_fs.append(u_f)
 
         for j, x_b in enumerate(x_bs):
             u_b = u_bs[j]
@@ -179,42 +184,52 @@ def train():
             x_derivs = x_derivs_train[i]
 
             boundary_dataset = BoundaryDataset(x_bs, u_bs, x_derivs)
+ 
             pde_dataset      = PDEDataset(x_bs, u_bs)
-            start2 = time.time()
-            for j, x_b in enumerate(x_bs):
-                u_b = u_bs[j]
-                x_deriv = x_derivs[j]
-                loss_b += loss_func(calc_deriv(x_b, test(x_b), x_deriv), u_b) * w_b
-            # print("{:.3f}s".format(time.time() - start2))
-            # print("After calculating loss_b {:.3f}s".format(time.time() - start2))
 
-            start2 = time.time()
-            x_f = x_fs[i]
-            u_f = u_fs[i]
-            loss_f += loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f) * w_f
+            boundary_dataloader = DataLoader(boundary_dataset, batch_size=batch_size, shuffle=True)
+            pde_dataloader      = DataLoader(pde_dataset, batch_size=batch_size, shuffle=True)
 
-            # print("After calculating loss_f {:.3f}s".format(time.time() - start2))
+
+            # for j, x_b in enumerate(x_bs):
+            for batch, b_data in enumerate(boundary_dataloader, 1):
+                # print(batch)
+                loss_b = 0.0
+                x_b, u_b, x_deriv = b_data
+                x_b = x_b.to(device)
+                u_b = u_b.to(device)
+                for x, u, d in zip(x_b, u_b, x_deriv):
+                    loss_b += (loss_func(calc_deriv(x, test(x), d), u) * w_b)
+                loss_b /= batch_size
+                loss_b.backward(retain_graph=True)
+                optim.step()
+
+            for batch, f_data in enumerate(pde_dataloader, 1):
+                x_f, u_f = f_data
+                x_f = x_f.to(device)
+                u_f = u_f.to(device)
+                loss_f = loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f) * w_f
+                loss_f.backward()
+                optim.step()
           
-            loss = loss_f + loss_b
+            loss = loss_f.item() + loss_b.item()
             loss_sum += loss
 
             loss_b_plt[i].append(loss_b.item())
             loss_f_plt[i].append(loss_f.item())
-            loss_plt[i].append(loss.item())
-            loss.backward()
-            optim.step()
+            loss_plt[i].append(loss)
             scheduler.step(loss)
             
-            if epoch % 500 == 1:
+            if epoch % 50 == 1:
                 draw(domain_no, global_lb, global_rb, overlap_size, 0)
                 test.plot_separate_models(x_plt)
 
             with torch.no_grad():
                 test.eval()
             
-                print("Epoch: {0} | LOSS: {1:.5f}".format(epoch+1, loss.item()))
+                print("Epoch: {0} | LOSS: {1:.5f} | LOSS_B: {2:.5f} | LOSS_F: {3:.5f}".format(epoch+1, loss, loss_b.item(), loss_f.item()))
 
-                if epoch % 500 == 1:
+                if epoch % 50 == 1:
                     draw_convergence(epoch + 1, loss_b_plt[i], loss_f_plt[i], loss_plt[i], i)
 
         if loss_sum < loss_save:
