@@ -57,16 +57,16 @@ def train():
     since = time.time()
 
     # Set the number of domains
-    domain_no = 1
+    domain_no = 2
 
     # Set the global left & right boundary of the calculation domain
     global_lb = -1.0
     global_rb = 1.0
 
     # Set the size of the overlapping area between domains
-    overlap_size = 0.1
+    overlap_size = 0.2
 
-    batch_size = 128
+    batch_size = 10000
 
     # Initialize combined PINNs
     test = CombinedPINN(domain_no, global_lb, global_rb, overlap_size)
