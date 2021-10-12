@@ -86,9 +86,9 @@ def train(model_path, figure_path):
     # Prepare to train
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
-    b_size = 300
-    f_size = 10000
-    epochs = 10000
+    b_size = 100
+    f_size = 20000
+    epochs = 100000
     # test = nn.DataParallel(test)
     test.to(device)
 
@@ -100,6 +100,8 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=-0.5, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=-0.5, u=0.0, deriv=1))
 
 
 
@@ -222,6 +224,7 @@ def train(model_path, figure_path):
                 loss_f = loss_func(calc_deriv(x_f, test(x_f), 4) - 1, u_f) * w_f
                 loss_f.backward()
                 optim.step()
+                print(batch, x_f.shape)
           
             loss = loss_f.item() + loss_b.item()
             loss_sum += loss
