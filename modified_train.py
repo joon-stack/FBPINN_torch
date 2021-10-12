@@ -1,4 +1,6 @@
-from numpy.random import f
+import sys
+import os
+
 import torch
 import torch.nn as nn
 import torch.autograd as autograd
@@ -52,12 +54,12 @@ class PDEDataset(Dataset):
 
         return x, u
 
-def train():
+def train(model_path, figure_path):
     # Set the starting time
     since = time.time()
 
     # Set the number of domains
-    domain_no = 2
+    domain_no = 1
 
     # Set the global left & right boundary of the calculation domain
     global_lb = -1.0
@@ -66,10 +68,10 @@ def train():
     # Set the size of the overlapping area between domains
     overlap_size = 0.2
 
-    batch_size = 10000
+    batch_size = 64
 
     # Initialize combined PINNs
-    test = CombinedPINN(domain_no, global_lb, global_rb, overlap_size)
+    test = CombinedPINN(domain_no, global_lb, global_rb, overlap_size, figure_path=figure_path)
     sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
     test.module_update(sample)
     test.make_domains()
@@ -84,7 +86,7 @@ def train():
     # Prepare to train
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
-    b_size = 100
+    b_size = 300
     f_size = 10000
     epochs = 10000
     # test = nn.DataParallel(test)
@@ -96,8 +98,8 @@ def train():
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=1))
 
 
 
@@ -110,9 +112,9 @@ def train():
 
     for key in models.keys():
         model = models[key]
-        optim = torch.optim.Adam(model.parameters(), lr=0.0001)
+        optim = torch.optim.Adam(model.parameters(), lr=0.001)
         optims.append(optim)
-        schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=1000, verbose=True))
+        schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=100, verbose=True))
 
     # dms = test.module.domains
     # bds = test.module.boundaries
@@ -120,7 +122,7 @@ def train():
     bds = test.boundaries
 
     # Penalty term
-    w_b = 1
+    w_b = 100
     w_f = 1
 
     x_bs = []
@@ -192,17 +194,26 @@ def train():
 
 
             # for j, x_b in enumerate(x_bs):
-            for batch, b_data in enumerate(boundary_dataloader, 1):
-                # print(batch)
-                loss_b = 0.0
-                x_b, u_b, x_deriv = b_data
-                x_b = x_b.to(device)
-                u_b = u_b.to(device)
-                for x, u, d in zip(x_b, u_b, x_deriv):
-                    loss_b += (loss_func(calc_deriv(x, test(x), d), u) * w_b)
-                loss_b /= batch_size
-                loss_b.backward(retain_graph=True)
-                optim.step()
+            for j, x_b in enumerate(x_bs):
+                u_b = u_bs[j]
+
+                x_b = x_b.cuda()
+                u_b = u_b.cuda()
+                x_deriv = x_derivs[j]
+                loss_b += loss_func(calc_deriv(x_b, test(x_b), x_deriv[0]), u_b) * w_b
+            loss_b.backward()
+            optim.step()
+            # for batch, b_data in enumerate(boundary_dataloader, 1):
+            #     # print(batch)
+            #     loss_b = 0.0
+            #     x_b, u_b, x_deriv = b_data
+            #     x_b = x_b.to(device)
+            #     u_b = u_b.to(device)
+            #     for x, u, d in zip(x_b, u_b, x_deriv):
+            #         loss_b += (loss_func(calc_deriv(x, test(x), d), u) * w_b)
+            #     loss_b /= batch_size
+            #     loss_b.backward(retain_graph=True)
+            #     optim.step()
 
             for batch, f_data in enumerate(pde_dataloader, 1):
                 x_f, u_f = f_data
@@ -221,7 +232,7 @@ def train():
             scheduler.step(loss)
             
             if epoch % 50 == 1:
-                draw(domain_no, global_lb, global_rb, overlap_size, 0)
+                draw(domain_no, global_lb, global_rb, overlap_size, model_path, figure_path)
                 test.plot_separate_models(x_plt)
 
             with torch.no_grad():
@@ -230,14 +241,14 @@ def train():
                 print("Epoch: {0} | LOSS: {1:.5f} | LOSS_B: {2:.5f} | LOSS_F: {3:.5f}".format(epoch+1, loss, loss_b.item(), loss_f.item()))
 
                 if epoch % 50 == 1:
-                    draw_convergence(epoch + 1, loss_b_plt[i], loss_f_plt[i], loss_plt[i], i)
+                    draw_convergence(epoch + 1, loss_b_plt[i], loss_f_plt[i], loss_plt[i], i, figure_path)
 
         if loss_sum < loss_save:
             loss_save = loss_sum
-            torch.save(test.state_dict(), './models/cpinn.data')
+            torch.save(test.state_dict(), model_path)
             print(".......model updated (epoch = ", epoch+1, ")")
         
-        if loss_sum < 0.00001:
+        if loss_sum < 0.0000001:
             break
 
                 
@@ -247,25 +258,27 @@ def train():
     print("Elapsed Time: {} s".format(time.time() - since))
     print("DONE")
     
-def draw_convergence(epoch, loss_b, loss_f, loss, id):
+def draw_convergence(epoch, loss_b, loss_f, loss, id, figure_path):
     plt.cla()
     x = np.arange(epoch)
+
+    fpath = os.path.join(figure_path, "convergence_model{}.png".format(id))
 
     plt.plot(x, np.array(loss_b), label='Loss_B')
     plt.plot(x, np.array(loss_f), label='Loss_F')
     plt.plot(x, np.array(loss), label='Loss')
     plt.yscale('log')
     plt.legend()
-    plt.savefig('./figures/convergence_{}.png'.format(id))
+    plt.savefig(fpath)
 
-def draw(domain_no, lb, rb, overlap_size, deriv):
-    model = CombinedPINN(domain_no, lb, rb, overlap_size)
+def draw(domain_no, lb, rb, overlap_size, model_path, figure_path):
+    model = CombinedPINN(domain_no, lb, rb, overlap_size, figure_path)
     sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
     model.module_update(sample)
     model.make_domains()
     model.make_boundaries()
     model.cuda()
-    model_path = "./models/cpinn.data"
+    print(model_path)
     state_dict = torch.load(model_path)
     state_dict = {m.replace('module.', '') : i for m, i in state_dict.items()}
     model.load_state_dict(state_dict)
@@ -275,10 +288,12 @@ def draw(domain_no, lb, rb, overlap_size, deriv):
     x_test.requires_grad = True
     
     pred = model(x_test).cpu().detach().numpy()
+
+    fpath = os.path.join(figure_path, "model.png")
     plt.cla()
     plt.plot(x_test_plt, pred, 'b', label='CPINN')
     plt.legend()
-    plt.savefig('./figures/test.png')
+    plt.savefig(fpath)
 
     # for i in range(deriv + 1):
         
@@ -288,10 +303,12 @@ def draw(domain_no, lb, rb, overlap_size, deriv):
     #     plt.legend()
     #     plt.savefig('./figures/test_{}.png'.format(i))
 
-def main():
-    train()
+def main(model_path, figure_path):
+    train(model_path, figure_path)
     # window_test()
     
 if __name__ == "__main__":
-    main()
+    since = time.time()
+    main(sys.argv[1], sys.argv[2])
+    print("Elapsed time: {:.3f} s".format(time.time() - since))
     
