@@ -1,8 +1,21 @@
 import torch
+from torch.functional import block_diag
 import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
 import matplotlib.pyplot as plt
+
+from torch.utils.data import Dataset
+
+import os 
+
+def calc_deriv(x, input, times):
+    if times == 0:
+        return input
+    res = input
+    for _ in range(times):
+        res = autograd.grad(res.sum(), x, create_graph=True)[0]
+    return res
 
 class PINN(nn.Module):
     def __init__(self, id):
@@ -73,14 +86,52 @@ class Step(Relu):
 
         zeros = torch.zeros(x.shape).cuda()
         ones  = torch.ones(x.shape).cuda()
-
-        x = x - (lb + rb) / 2
-        res = torch.where(x > 0, zeros, ones) if i > 0 else torch.where(x > 0, ones, zeros)
+        y = x - rb
+        x = lb - x
+        
+        res = torch.where(x > 0, zeros, ones) if i > 0 else torch.where(y < 0, ones, zeros)
         out = res.clone().detach().requires_grad_(True).cuda()
 
         # res = torch.tensor(res).type(torch.FloatTensor).requires_grad_(True).cuda()
         return out
-        
+
+class Sigmoid(Relu):
+    def __init__(self, lb, rb, i):
+        self.lb = lb
+        self.rb = rb
+        self.i = i
+        self.act_func = nn.Sigmoid()
+    
+    def forward(self, x):
+        a = self.lb
+        b = self.rb
+        i = self.i
+        act_func = self.act_func
+
+        if i > 0:
+            return act_func((x - a) / (b - a) * 10)
+        elif i == 0:
+            return act_func((b - x) / (b - a) * 10)
+        else:
+            print('Error')
+    
+    def __call__(self, x):
+        return self.forward(x)
+    
+class Where():
+    def __init__(self, bd, i):
+        self.bd = bd
+        self.i = i
+    
+    def __call__(self, x):
+        ones = torch.ones(x.shape).cuda()
+        zeros = torch.zeros(x.shape).cuda()
+        bd = self.bd
+        idx = x - bd
+        i = self.i
+        out = torch.where(idx > 0, zeros, ones) if i > 0 else torch.where(idx > 0, ones, zeros)
+        return out
+
 class Window():
     def __init__(self):
         self.funcs = []
@@ -89,7 +140,7 @@ class Window():
         result = torch.ones(x.shape).cuda()
         for func in self.funcs:
             result *= func(x)
-        return result / 100
+        return result / 1
     
     def __str__(self):
         res = ""
@@ -99,9 +150,119 @@ class Window():
 
     def append_funcs(self, func):
         self.funcs.append(func)
+        
+
+class CPINN(nn.Module):
+    def __init__(self, domain_no, lb, rb, figure_path):
+        super(CPINN, self).__init__()
+        self.domain_no = domain_no
+        self.lb = lb
+        self.rb = rb
+        self.figure_path = figure_path
+        self.length = rb - lb
+
+        self.domains = [{} for _ in range(self.domain_no)]
+        self.boundaries = [ None for _ in range(self.domain_no - 1)]
+
+    def forward(self, x):
+        out = 0.0
+
+        models = self.get_models()
+        if self.domain_no == 1:
+            model1 = models["Model1"]
+            return model1(x)
+        
+        for i in range(self.domain_no - 1):
+            bd = self.boundaries[i]
+            where_1 = Where(bd, 1)
+            where_2 = Where(bd, 0)
+            
+            model1 = models["Model{}".format(i+1)]
+            model2 = models["Model{}".format(i+2)]
+            out += model1(x) * where_1(x) + model2(x) * where_2(x)
+        return out
+
+    def module_update(self, dict):
+        self.__dict__['_modules'].update(dict)
+
+    def get_models(self):
+        return self.__dict__['_modules']
+
+    def make_domains(self):
+        length = self.length
+        size = length / self.domain_no
+        # print(size)
+        for i in range(self.domain_no):
+            self.domains[i]['lb'] = self.lb + size * i
+            self.domains[i]['rb'] = self.lb + size * (i + 1)
+
+    def make_boundaries(self):
+        lb = self.lb
+        length = self.length
+        size = length / self.domain_no
+        for i in range(self.domain_no - 1):
+            self.boundaries[i] = lb + size * (i + 1)
+        
+
+    def plot_domains(self):
+        dms = self.domains
+        bds = self.boundaries
+
+        plt.cla()
+        fpath = os.path.join(self.figure_path, 'domains.png')
+        for n, dm in enumerate(dms):
+            lb = dm['lb']
+            rb = dm['rb']
+            plt.plot((lb, rb), (0, 0), '--', label='Domain {}'.format(n))
+
+        for n, bd in enumerate(bds):
+            plt.plot(bd, label='Boundary {}'.format(n))
+
+        plt.legend()
+        plt.savefig(fpath)
+
+    def plot_separate_models(self, x):
+        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
+        plt.cla()
+        models = self.get_models()
+        for i, key in enumerate(models.keys()):
+            model = models[key]
+            label = 'Model_{}'.format(i)
+            x_cpu = x.cpu().detach().numpy()
+            result = (model(x)).cpu().detach().numpy()
+            plt.plot(x_cpu, result, label=label)
+        plt.legend()
+
+        fpath = os.path.join(self.figure_path, "separate_models.png")
+        plt.savefig(fpath)
     
+    def plot_model(self, x):
+        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
+        pred = self(x)
+        x_cpu = x.cpu().detach().numpy()
+        pred_cpu = pred.cpu().detach().numpy()
+        plt.cla()
+        plt.plot(x_cpu, pred_cpu)
+        fpath = os.path.join(self.figure_path, "model.png")
+        plt.savefig(fpath)
+
+    def get_boundary_error(self):
+        out = 0.0
+        models = self.get_models()
+        bds = self.boundaries
+        for i, bd in enumerate(bds, 1):
+            bd = torch.tensor(bd).unsqueeze(0).T.type(torch.FloatTensor).cuda().requires_grad_(True)
+            a = models["Model{}".format(i)](bd)
+            b = models["Model{}".format(i + 1)](bd)
+            out += ( a - b ) ** 2
+            out += ( calc_deriv(bd, a, 1) - calc_deriv(bd, b, 1) ) ** 2
+        out /= len(bds)
+        return out 
+
+
+
 class CombinedPINN(nn.Module):
-    def __init__(self, domain_no, lb, rb, overlap_size):
+    def __init__(self, domain_no, lb, rb, overlap_size, figure_path):
         super(CombinedPINN, self).__init__()
         self.domain_no = domain_no
         self.lb = lb
@@ -109,6 +270,8 @@ class CombinedPINN(nn.Module):
         self.overlap_size = overlap_size
         self.outer_domain_size = 0.0
         self.inner_domain_size = 0.0
+        
+        self.figure_path = figure_path
 
         self.domains = [{} for _ in range(self.domain_no)]
         self.boundaries = [{} for _ in range(self.domain_no - 1)]
@@ -156,7 +319,9 @@ class CombinedPINN(nn.Module):
             plt.plot((lb, rb), (0, 0), label='Boundary {}'.format(i), linewidth=4)
         
         plt.legend()
-        plt.savefig('./figures/domain_test.png')
+
+        fpath = os.path.join(self.figure_path, "domains_and_boundaries.png")
+        plt.savefig(fpath)
 
     def make_windows(self):
         bds = self.boundaries
@@ -168,8 +333,9 @@ class CombinedPINN(nn.Module):
             for j in range(size - 1):
                 lb = bds[j]['lb']
                 rb = bds[j]['rb']
-                # self.windows[i].append_funcs(Relu(lb, rb, i=idx))
-                self.windows[i].append_funcs(Step(lb, rb, i=idx))
+                self.windows[i].append_funcs(Relu(lb, rb, i=idx))
+                # self.windows[i].append_funcs(Step(lb, rb, i=idx))
+                # self.windows[i].append_funcs(Sigmoid(lb, rb, i=idx))
                 if idx > 0:
                     idx -= 1
 
@@ -184,7 +350,9 @@ class CombinedPINN(nn.Module):
             res = window(x_test).cpu().detach().numpy()
             plt.plot(x_test_plt, res, label=i)
         plt.legend()
-        plt.savefig("./figures/window_test.png")
+
+        fpath = os.path.join(self.figure_path, "window.png")
+        plt.savefig(fpath)
 
     def plot_separate_models(self, x):
         x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
@@ -197,7 +365,19 @@ class CombinedPINN(nn.Module):
             result = (model(x) * self.windows[i](x)).cpu().detach().numpy()
             plt.plot(x_cpu, result, label=label)
         plt.legend()
-        plt.savefig('./figures/separate_models.png')
+
+        fpath = os.path.join(self.figure_path, "separate_models.png")
+        plt.savefig(fpath)
+    
+    def plot_model(self, x):
+        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
+        pred = self(x)
+        x_cpu = x.cpu().detach().numpy()
+        pred_cpu = pred.cpu().detach().numpy()
+        plt.cla()
+        plt.plot(x_cpu, pred_cpu)
+        fpath = os.path.join(self.figure_path, "model.png")
+        plt.savefig(fpath)
 
     def forward(self, x):
         out = 0.0
@@ -217,9 +397,9 @@ def sigmoid(x, a, b, i):
     # def act(x):
     #     return 1 / (1 + torch.exp(-x))
     if i > 0:
-        return act((x - a) / (b - a))
+        return act((x - a) / (b - a) / 100)
     elif i == 0:
-        return act((b - x) / (b - a))
+        return act((b - x) / (b - a) / 100)
     else:
         print("Error")
 
@@ -236,3 +416,70 @@ def relu6(x, a, b, i):
         return act_func((b - x) * 6 / (b - a)) / 6
     else:
         print('Error')
+
+class BoundaryDataset(Dataset):
+    def __init__(self, x, u, d):
+        self.x = []
+        self.u = []
+        self.d = []
+
+        for a in x:
+            self.x.extend(a)
+        
+        for a in u:
+            self.u.extend(a)
+
+        for a in d:
+            self.d.extend(a)
+
+    
+    def __len__(self):
+        return len(self.u)
+    
+    def __getitem__(self, idx):
+        x = torch.FloatTensor(self.x[idx])
+        u = torch.FloatTensor(self.u[idx])
+        d = self.d[idx]
+
+        return x, u, d
+
+class PDEDataset(Dataset):
+    def __init__(self, x, u):
+        self.x = x
+        self.u = u
+    
+    def __len__(self):
+        return len(self.u)
+    
+    def __getitem__(self, idx):
+        x = torch.FloatTensor(self.x[idx])
+        u = torch.FloatTensor(self.u[idx])
+
+        return x, u
+
+def draw_convergence(epoch, loss_b, loss_f, loss, id, figure_path):
+    plt.cla()
+    x = np.arange(epoch)
+
+    fpath = os.path.join(figure_path, "convergence_model{}.png".format(id))
+
+    plt.plot(x, np.array(loss_b), label='Loss_B')
+    plt.plot(x, np.array(loss_f), label='Loss_F')
+    plt.plot(x, np.array(loss), label='Loss')
+    plt.yscale('log')
+    plt.legend()
+    plt.savefig(fpath)
+
+def draw_convergence_cpinn(epoch, loss_b, loss_f, loss_i, loss, id, figure_path):
+    plt.cla()
+    x = np.arange(epoch)
+
+    fpath = os.path.join(figure_path, "convergence_model{}.png".format(id))
+
+    plt.plot(x, np.array(loss_b), label='Loss_B')
+    plt.plot(x, np.array(loss_f), label='Loss_F')
+    plt.plot(x, np.array(loss_i), label='Loss_I')
+    plt.plot(x, np.array(loss), label='Loss')
+    plt.yscale('log')
+    plt.legend()
+    plt.savefig(fpath)
