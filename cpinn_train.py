@@ -30,7 +30,7 @@ def train(model_path, figure_path):
 
     # Points
     # points = [-1.0, -0.5, 0.5, 1.0]
-    points = [-1.0, 0.0, 1.0]
+    points = [-1.0, 0.5, 1.0]
 
     # Initialize CPINN model
     model = CPINN(domain_no, global_lb, global_rb, figure_path)
@@ -57,8 +57,8 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=1))
     # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=1))
 
@@ -66,8 +66,8 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=1))
     # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=1))
 
