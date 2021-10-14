@@ -18,7 +18,7 @@ from modules.generate_data import *
 
 def train(model_path, figure_path):
     # Set the number of domains
-    domain_no = 3
+    domain_no = 2
 
     # Set the global left & right boundary of the calculation domain
     global_lb = -1.0
@@ -29,7 +29,8 @@ def train(model_path, figure_path):
 
 
     # Points
-    points = [-0.5, 0.5]
+    # points = [-1.0, -0.5, 0.5, 1.0]
+    points = [-1.0, 0.0, 1.0]
 
     # Initialize CPINN model
     model = CPINN(domain_no, global_lb, global_rb, figure_path)
@@ -44,20 +45,31 @@ def train(model_path, figure_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
 
-    b_size = 3
-    f_size = 10
-    epochs = 1
+    b_size = 100
+    f_size = 10000
+    epochs = 10000
     model.to(device)
 
+    dw = 0.00001
+    
     bcs = []
-    bcs.append(BCs(b_size, x=-1.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=-1.0, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=1))
-    bcs.append(BCs(b_size, x=-0.5, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=-0.5, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=1))
+
+    bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
+    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=1))
 
     optims = []
     schedulers = []
@@ -108,14 +120,19 @@ def train(model_path, figure_path):
             u_b = u_bs[j]
             x_deriv = x_derivs[j]
             x = x_b[0]
+            # print(lb, rb)
             if lb <= x <= rb:
                 x_bs_train[i].append(x_b)
                 u_bs_train[i].append(u_b)
                 x_derivs_train[i].append(x_deriv)
         
-        # for j, x_f in enumerate(x_fs):
-        #     u_f = u_fs[j]
-        #     x = x_f[0]
+        for j, x_f in enumerate(x_fs):
+            u_f = u_fs[j]
+            x = x_f[0]
+            if lb <= x <= rb:
+                x_fs_train[i].append(x_f)
+                u_fs_train[i].append(u_f)
+
         
 
     # print(x_bs_train)
@@ -145,8 +162,12 @@ def train(model_path, figure_path):
 
 
             x_bs = x_bs_train[i]
+            # print(x_bs)
             u_bs = u_bs_train[i]
             x_derivs = x_derivs_train[i]
+
+            x_fs = x_fs_train[i]
+            u_fs = u_fs_train[i]
 
             # print(x_bs)
 
@@ -172,6 +193,7 @@ def train(model_path, figure_path):
                     loss_b += loss_func(calc_deriv(x_b, model(x_b), x_deriv[0]), u_b) * w_b
 
                 x_f, u_f = f_data
+                # print(x_f, u_f)
                 x_f = x_f.to(device)
                 u_f = u_f.to(device)
                 loss_f = loss_func(calc_deriv(x_f, model(x_f), 4) - 1, u_f) * w_f
@@ -183,7 +205,7 @@ def train(model_path, figure_path):
                 optim.step()
                 # print(batch, x_f.shape)
           
-            loss = loss_f.item() + loss_b.item()
+            loss = loss_f.item() + loss_b.item() + loss_i.item()
             loss_sum += loss
 
             loss_b_plt[i].append(loss_b.item())
