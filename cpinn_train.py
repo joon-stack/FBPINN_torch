@@ -18,7 +18,7 @@ from modules.generate_data import *
 
 def train(model_path, figure_path):
     # Set the number of domains
-    domain_no = 2
+    domain_no = 3
 
     # Set the global left & right boundary of the calculation domain
     global_lb = -1.0
@@ -27,12 +27,16 @@ def train(model_path, figure_path):
     # Batch size
     batch_size = 100
 
+
+    # Points
+    points = [-0.5, 0.5]
+
     # Initialize CPINN model
     model = CPINN(domain_no, global_lb, global_rb, figure_path)
     sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
     model.module_update(sample)
-    model.make_domains()
-    model.make_boundaries()
+    model.make_domains(points)
+    model.make_boundaries(points)
     model.plot_domains()
 
     # print(model.domains)
@@ -40,9 +44,9 @@ def train(model_path, figure_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
 
-    b_size = 100
-    f_size = 10000
-    epochs = 10000
+    b_size = 3
+    f_size = 10
+    epochs = 1
     model.to(device)
 
     bcs = []
@@ -50,8 +54,10 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.5, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=-0.5, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=-0.5, u=0.0, deriv=1))
 
     optims = []
     schedulers = []
@@ -68,7 +74,7 @@ def train(model_path, figure_path):
     
     w_b = 100
     w_f = 1
-    w_i = 100
+    w_i = 10
 
     x_bs = []
     u_bs = []
@@ -80,6 +86,9 @@ def train(model_path, figure_path):
 
     x_bs_train = [[] for _ in range(domain_no)]
     u_bs_train = [[] for _ in range(domain_no)]
+
+    x_fs_train = [[] for _ in range(domain_no)]
+    u_fs_train = [[] for _ in range(domain_no)]
 
     for bc in bcs:
         x_b, u_b = make_training_boundary_data(b_size=bc.size, x=bc.x, u=bc.u)
@@ -103,7 +112,14 @@ def train(model_path, figure_path):
                 x_bs_train[i].append(x_b)
                 u_bs_train[i].append(u_b)
                 x_derivs_train[i].append(x_deriv)
+        
+        # for j, x_f in enumerate(x_fs):
+        #     u_f = u_fs[j]
+        #     x = x_f[0]
+        
 
+    # print(x_bs_train)
+    # print(x_fs)
     loss_save = np.inf
     
     loss_b_plt = [[] for _ in range(domain_no)]
