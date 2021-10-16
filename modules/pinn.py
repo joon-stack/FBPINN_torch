@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 
 from torch.utils.data import Dataset
 
@@ -23,6 +24,9 @@ class PINN(nn.Module):
 
         self.id = id
 
+        self.lb = -1.0
+        self.rb = 1.0
+
         self.hidden_layer1      = nn.Linear(1, 40)
         self.hidden_layer2      = nn.Linear(40, 40)
         self.hidden_layer3      = nn.Linear(40, 40)
@@ -40,9 +44,10 @@ class PINN(nn.Module):
         # a_layer5       = act_func(self.hidden_layer5(a_layer4))
         out            = self.output_layer(a_layer4)
 
-        # out *= window(input_data, 0.4, 0.6, i=self.id)
-
         return out
+
+
+
 
 class BCs():
     def __init__(self, size, x, u, deriv):
@@ -50,6 +55,14 @@ class BCs():
         self.x = x
         self.u = u
         self.deriv = deriv
+
+class PDEs():
+    def __init__(self, size, w1, w2, lb, rb):
+        self.size = size
+        self.w1 = w1
+        self.w2 = w2
+        self.lb = lb
+        self.rb = rb
 
 class Relu():
     def __init__(self, lb, rb, i):
@@ -188,20 +201,43 @@ class CPINN(nn.Module):
     def get_models(self):
         return self.__dict__['_modules']
 
-    def make_domains(self):
-        length = self.length
-        size = length / self.domain_no
-        # print(size)
-        for i in range(self.domain_no):
-            self.domains[i]['lb'] = self.lb + size * i
-            self.domains[i]['rb'] = self.lb + size * (i + 1)
+    def make_domains(self, points=None):
+        if points:
+            points_copy = copy.copy(points)
 
-    def make_boundaries(self):
-        lb = self.lb
+            for i in range(self.domain_no):
+                self.domains[i]['lb'] = points_copy[i]
+                self.domains[i]['rb'] = points_copy[i + 1]
+        else:
+            length = self.length
+            size = length / self.domain_no
+            # print(size)
+            for i in range(self.domain_no):
+                self.domains[i]['lb'] = self.lb + size * i
+                self.domains[i]['rb'] = self.lb + size * (i + 1)
+
+        # to do: make mapping? kind of Jacobian
         length = self.length
-        size = length / self.domain_no
-        for i in range(self.domain_no - 1):
-            self.boundaries[i] = lb + size * (i + 1)
+        for i in range(self.domain_no):
+            # t = ax + b
+            lb = self.domains[i]['lb']
+            rb = self.domains[i]['rb']
+            domain_size = rb - lb
+            a = length / domain_size
+            self.domains[i]['a'] = a
+            self.domains[i]['b'] = -1 - lb * a
+
+
+    def make_boundaries(self, points=None):
+        if points:
+            self.boundaries = points[1:-1]
+        else:
+            lb = self.lb
+            length = self.length
+            size = length / self.domain_no
+            for i in range(self.domain_no - 1):
+                self.boundaries[i] = lb + size * (i + 1)
+            
         
 
     def plot_domains(self):
@@ -250,12 +286,22 @@ class CPINN(nn.Module):
         out = 0.0
         models = self.get_models()
         bds = self.boundaries
+        if len(bds) == 0:
+            return 0.0
+        # print(bds)
+        dw = 0.00001
         for i, bd in enumerate(bds, 1):
+            
             bd = torch.tensor(bd).unsqueeze(0).T.type(torch.FloatTensor).cuda().requires_grad_(True)
-            a = models["Model{}".format(i)](bd)
-            b = models["Model{}".format(i + 1)](bd)
+            a = models["Model{}".format(i)](bd - dw)
+            b = models["Model{}".format(i + 1)](bd - dw)
+            c = models["Model{}".format(i)](bd + dw)
+            d = models["Model{}".format(i + 1)](bd + dw)
             out += ( a - b ) ** 2
             out += ( calc_deriv(bd, a, 1) - calc_deriv(bd, b, 1) ) ** 2
+            out += ( c - d ) ** 2
+            out += ( calc_deriv(bd, c, 1) - calc_deriv(bd, d, 1) ) ** 2
+            # out += ( calc_deriv(bd, a, 2) - calc_deriv(bd, b, 2) ) ** 2 
         out /= len(bds)
         return out 
 
