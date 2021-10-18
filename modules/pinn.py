@@ -34,8 +34,17 @@ class PINN(nn.Module):
         # self.hidden_layer5      = nn.Linear(40, 40)
         self.output_layer       = nn.Linear(40, 1)
 
+        # t = ax + b
+        self.a = 1
+        self.b = 0
+
     def forward(self, x):
-        input_data     = x
+        a = self.a
+        b = self.b
+
+        input_data     = a * x + b
+        # print("{}x + {}".format(a, b))
+        # print("{:.3f}, {:.3f}".format(x.item(), input_data.item()))
         act_func       = nn.Tanh()
         a_layer1       = act_func(self.hidden_layer1(input_data))
         a_layer2       = act_func(self.hidden_layer2(a_layer1))
@@ -164,7 +173,6 @@ class Window():
     def append_funcs(self, func):
         self.funcs.append(func)
         
-
 class CPINN(nn.Module):
     def __init__(self, domain_no, lb, rb, figure_path):
         super(CPINN, self).__init__()
@@ -192,7 +200,10 @@ class CPINN(nn.Module):
             
             model1 = models["Model{}".format(i+1)]
             model2 = models["Model{}".format(i+2)]
+            
             out += model1(x) * where_1(x) + model2(x) * where_2(x)
+            # print("{:.2f}".format(x.item()), where_1(x).item(), where_2(x).item())
+            # print("{:.2f}".format(out.item()))
         return out
 
     def module_update(self, dict):
@@ -301,7 +312,10 @@ class CPINN(nn.Module):
             out += ( calc_deriv(bd, a, 1) - calc_deriv(bd, b, 1) ) ** 2
             out += ( c - d ) ** 2
             out += ( calc_deriv(bd, c, 1) - calc_deriv(bd, d, 1) ) ** 2
-            # out += ( calc_deriv(bd, a, 2) - calc_deriv(bd, b, 2) ) ** 2 
+            out += ( calc_deriv(bd, a, 2) - calc_deriv(bd, b, 2) ) ** 2 
+            out += ( calc_deriv(bd, c, 2) - calc_deriv(bd, d, 2) ) ** 2 
+            out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3)) ** 2 
+            out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3)) ** 2 
         out /= len(bds)
         return out 
 
