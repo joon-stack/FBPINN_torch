@@ -17,10 +17,12 @@ from modules.generate_data import *
 
 
 def train(model_path, figure_path):
+    log_path = os.path.join(figure_path, 'log.txt')
+
     # Points
     # points = [-1.0, 0.0 - dx, 0.0 + dx, 1.0]
     # points = [-1.0, 0.0, 1.0]
-    points = [-1.0, -0.5, 0.5, 1.0]
+    points = [-1.0, -0.5, 0.0, 0.5, 1.0]
     # points = [-0.5, 0.5]
     # points = [0.5, 1.0]
     # Set the number of domains
@@ -65,32 +67,33 @@ def train(model_path, figure_path):
     b_size = 100
     f_size = 10000
     epochs = 10000
+    lr = 0.0001
     model.to(device)
 
     dw = 0.00001
     
     bcs = []
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
-    # bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=1))
-    bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=2))
 
     bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
-    # bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=1))
+    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=1))
-    bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=1))
+    # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=2))
 
     pdes = []
     pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=-0.5))
@@ -98,10 +101,12 @@ def train(model_path, figure_path):
     pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
     # pdes.append(PDEs(f_size, w1=1, w2=10, lb=-0.05, rb=0.05))
     # pdes.append(PDEs(f_size, w1=1, w2=0, lb=0.0, rb=1.0)) 
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-0.5, rb=0.5))
+    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-0.5, rb=0.0))
+    pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.0, rb=0.5))
     # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=1.0))
     # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=1.0))
 
+    
 
     optims = []
     schedulers = []
@@ -110,7 +115,7 @@ def train(model_path, figure_path):
 
     for key in models.keys():
         sub_model = models[key]
-        optim = torch.optim.Adam(sub_model.parameters(), lr=0.0001)
+        optim = torch.optim.Adam(sub_model.parameters(), lr=lr)
         optims.append(optim)
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=100, verbose=True))
 
@@ -119,6 +124,33 @@ def train(model_path, figure_path):
     w_b = 100
     w_f = 1
     w_i = 1
+
+    with open(log_path, 'w') as f:
+        f.write("-----------------------------Points-----------------------------\n")
+        for p in points:
+            f.write(str(p) + "\t")
+        f.write("\n")
+        f.write("-----------------------------BCs-----------------------------\n")
+        for n, bc in enumerate(bcs):
+            f.write("BC {}\n".format(n))
+            f.write("size: {}\n".format(bc.size))
+            f.write("x: {}\n".format(bc.x))
+            f.write("u: {}\n".format(bc.u))
+            f.write("deriv: {}\n".format(bc.deriv))
+        f.write("-----------------------------PDEs-----------------------------\n")
+        for n, pde in enumerate(pdes):
+            f.write("PDE {}\n".format(n))
+            f.write("size: {}\n".format(pde.size))
+            f.write("Eq.: {}x(4) - {}\n".format(pde.w1, pde.w2))
+            f.write("Boundary: {} to {}\n".format(pde.lb, pde.rb))
+        f.write("-----------------------------Hyperparameters-----------------------------\n")
+        f.write("w_b: {}\n".format(w_b))
+        f.write("w_f: {}\n".format(w_f))
+        f.write("w_i: {}\n".format(w_i))
+        f.write("epochs: {}\n".format(epochs))
+        f.write("learning rate: {}\n".format(lr))
+
+
 
     x_bs = []
     u_bs = []
