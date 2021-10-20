@@ -1,5 +1,4 @@
 import torch
-from torch.functional import block_diag
 import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
@@ -8,15 +7,11 @@ import copy
 
 from torch.utils.data import Dataset
 
+from modules.utils import *
+
 import os 
 
-def calc_deriv(x, input, times):
-    if times == 0:
-        return input
-    res = input
-    for _ in range(times):
-        res = autograd.grad(res.sum(), x, create_graph=True)[0]
-    return res
+
 
 class PINN(nn.Module):
     def __init__(self, id):
@@ -54,9 +49,6 @@ class PINN(nn.Module):
         out            = self.output_layer(a_layer4)
 
         return out
-
-
-
 
 class BCs():
     def __init__(self, size, x, u, deriv):

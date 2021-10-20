@@ -13,8 +13,8 @@ from torch.utils.data import DataLoader
 
 from modules.pinn import *
 from modules.generate_data import *
+from modules.utils import *
     
-
 
 def train(model_path, figure_path):
     log_path = os.path.join(figure_path, 'log.txt')

@@ -18,6 +18,21 @@ def make_training_boundary_data(b_size, x=0.0, u=0.0, seed=1004, x_b=None, u_b=N
 
     return x_b, u_b
 
+def make_training_boundary_data_2d(size, x_lb, x_rb, y_lb, y_rb, u, v):
+    if x_lb == x_rb:
+        y_b =np.random.uniform(y_lb, y_rb, size=(size, 1))
+        x_b = np.ones(y_b.shape) * x_lb
+    elif y_lb == y_rb:
+        x_b = np.random.uniform(x_lb, x_rb, size=(size, 1))
+        y_b = np.ones(x_b.shape) * y_lb
+
+    x_b = make_tensor(x_b)
+    y_b = make_tensor(y_b)
+    u_b = make_tensor(np.ones(x_b.shape)) * u
+    v_b = make_tensor(np.ones(x_b.shape)) * v
+    
+    return x_b, y_b, u_b, v_b
+
 def make_training_collocation_data(f_size, x_lb=0.0, x_rb=1.0, seed=1004, x_f=None, u_f=None):
     np.random.seed(seed)
 
@@ -31,6 +46,14 @@ def make_training_collocation_data(f_size, x_lb=0.0, x_rb=1.0, seed=1004, x_f=No
     u_f = torch.cat((u_f, u_f_new), axis=1) if u_f else u_f_new
 
     return x_f, u_f
+
+def make_training_collocation_data_2d(size, x_lb, x_rb, y_lb, y_rb):
+    x_f = make_tensor(np.random.uniform(x_lb, x_rb, size=(size, 1)))
+    y_f = make_tensor(np.random.uniform(y_lb, y_rb, size=(size, 1)))
+    u_f = make_tensor(np.zeros(x_f.shape))
+    v_f = make_tensor(np.zeros(x_f.shape))
+
+    return x_f, y_f, u_f, v_f
 
 def make_tensor(x, requires_grad=True):
     t = torch.from_numpy(x)
