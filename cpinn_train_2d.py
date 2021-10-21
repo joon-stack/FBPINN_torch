@@ -8,8 +8,6 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 
 from modules.pinn_2d import *
 from modules.generate_data import *
@@ -19,11 +17,11 @@ def train(model_path, figure_path):
     log_path = os.path.join(figure_path, 'log.txt')
 
     # Points
-    points_x = [-1.0, 1.0]
-    points_y = [-1.0, 1.0]
+    points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
+    points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
 
     # Set the number of domains
-    domain_no = (len(points_x) + len(points_y)) // 2 - 1
+    domain_no = len(points_x)
 
     # Set the global left & right boundary of the calculation domain
     global_lb_x = -1.0
@@ -36,8 +34,8 @@ def train(model_path, figure_path):
 
     # to do
     model.make_domains(points_x, points_y)
-    # model.make_boundaries(points)
-    # model.plot_domains()
+    model.make_boundaries()
+    model.plot_domains()
     
     sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
 
@@ -49,23 +47,23 @@ def train(model_path, figure_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
 
-    b_size = 5
-    f_size = 5
-    epochs = 10000
-    lr = 0.0001
+    b_size = 100
+    f_size = 10000
+    epochs = 100000
+    lr = 0.0002
     model.to(device)
-
-    dw = 0.00001
     
     bcs = []
     bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
     bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
     bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
     bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
 
     pdes = []
     # w1 = lambda, w2: mu
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=0, fy=-1, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
     
     optims = []
     schedulers = []
@@ -80,7 +78,7 @@ def train(model_path, figure_path):
 
     dms = model.domains
     
-    w_b = 100
+    w_b = 10
     w_f = 1
     w_i = 1
 
@@ -148,6 +146,8 @@ def train(model_path, figure_path):
         x_b, y_b, u_b, v_b = make_training_boundary_data_2d(size=bc.size, x_lb=bc.x_lb, x_rb=bc.x_rb, y_lb=bc.y_lb, y_rb=bc.y_rb, u=bc.u, v=bc.v)
         x_bs.append(x_b)
         y_bs.append(y_b)
+        # if bc.y_lb == bc.y_rb:
+            # v_b = torch.sin(np.pi * x_b).type(torch.FloatTensor)
         u_bs.append(u_b)
         v_bs.append(v_b)
         x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv_x)
@@ -169,6 +169,7 @@ def train(model_path, figure_path):
 
         for j, (x_b, y_b) in enumerate(zip(x_bs, y_bs)):
             u_b = u_bs[j]
+            v_b = v_bs[j]
             x_deriv = x_derivs[j]
             y_deriv = y_derivs[j]
             x_max = bcs[j].x_rb
@@ -200,7 +201,6 @@ def train(model_path, figure_path):
                 pdes_weights_train[i]['fx'] = pde_weights[2]
                 pdes_weights_train[i]['fy'] = pde_weights[3]
                 
-
     loss_save = np.inf
     
     loss_b_plt = [[] for _ in range(domain_no)]
@@ -247,6 +247,7 @@ def train(model_path, figure_path):
                 y_deriv = y_derivs[j]
                 # to be modified when the deriv. is greater than 0
                 aa = calc_deriv(x_b, model(x_b, y_b), x_deriv[0])
+                # print(torch.cat((u_b, v_b), axis=1))
                 loss_b += loss_func(calc_deriv(y_b, aa, y_deriv[0]), torch.cat((u_b, v_b), axis=1)) * w_b
 
             for j, (x_f, y_f) in enumerate(zip(x_fs, y_fs)):
@@ -258,6 +259,7 @@ def train(model_path, figure_path):
                 w2 = pde_weights['w2']
                 fx = pde_weights['fx']
                 fy = pde_weights['fy']
+                # print(w1, w2, fx, fy)
                 # print(x_f, u_f, w1, w2)
                 u_hat = model(x_f, y_f)[:,0]
                 v_hat = model(x_f, y_f)[:,1]
@@ -268,8 +270,9 @@ def train(model_path, figure_path):
                 v_hat_y = calc_deriv(y_f, v_hat, 1)
                 v_hat_y_y = calc_deriv(y_f, v_hat_y, 1)
 
-                loss_f = loss_func( (w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx, u_f)
-                loss_f += loss_func( (w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy, u_f)
+                loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), u_f)
+                loss_f *= w_f
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
                 # print(calc_deriv(x_f, model(x_f), 4).item())
@@ -298,7 +301,8 @@ def train(model_path, figure_path):
             # scheduler.step(loss)
             
             if epoch % 50 == 1:
-                model.plot_model(x_plt, y_plt)
+                pass
+                # model.plot_model(x_plt, y_plt)
                 # model.plot_separate_models(x_plt, y_plt)
 
             with torch.no_grad():
@@ -313,13 +317,6 @@ def train(model_path, figure_path):
             loss_save = loss_sum
             torch.save(model.state_dict(), model_path)
             print(".......model updated (epoch = ", epoch+1, ")")
-        
-        # if loss_sum < 0.0000001:
-        #     break
-
-                
-        
-        # print("After 1 epoch {:.3f}s".format(time.time() - start))
             
     print("DONE")
 
