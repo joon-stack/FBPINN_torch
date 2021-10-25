@@ -17,8 +17,12 @@ def train(model_path, figure_path):
     log_path = os.path.join(figure_path, 'log.txt')
 
     # Points
-    points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
-    points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
+    # points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
+    # points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
+    points_x = [(-1.0, 0.0), (0.0, 1.0)]
+    points_y = [(-1.0, 1.0), (-1.0, 1.0)]
+    # points_x = [(-1,0, 1.0)]
+    # points_y = [(-1.0, 1.0)]
 
     # Set the number of domains
     domain_no = len(points_x)
@@ -63,7 +67,8 @@ def train(model_path, figure_path):
 
     pdes = []
     # w1 = lambda, w2: mu
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
     
     optims = []
     schedulers = []
@@ -103,7 +108,8 @@ def train(model_path, figure_path):
         for n, pde in enumerate(pdes):
             f.write("PDE {}\n".format(n))
             f.write("size: {}\n".format(pde.size))
-            f.write("Eq.: {}x(4) - {}\n".format(pde.w1, pde.w2))
+            # f.write("Eq.: {}x(4) - {}\n".format(pde.w1, pde.w2))
+            f.write("w1: {}, w2: {}, fx: {}, fy: {}\n".format(pde.w1, pde.w2, pde.fx, pde.fy))
             f.write("x: {} ~ {}, y: {} ~ {} \n".format(pde.x_lb, pde.x_rb, pde.y_lb, pde.y_rb))
         f.write("-----------------------------Hyperparameters-----------------------------\n")
         f.write("w_b: {}\n".format(w_b))
@@ -247,7 +253,6 @@ def train(model_path, figure_path):
                 y_deriv = y_derivs[j]
                 # to be modified when the deriv. is greater than 0
                 aa = calc_deriv(x_b, model(x_b, y_b), x_deriv[0])
-                # print(torch.cat((u_b, v_b), axis=1))
                 loss_b += loss_func(calc_deriv(y_b, aa, y_deriv[0]), torch.cat((u_b, v_b), axis=1)) * w_b
 
             for j, (x_f, y_f) in enumerate(zip(x_fs, y_fs)):

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import copy
 import os
+import time
 
 class PINN(nn.Module):
     def __init__(self, id):
@@ -56,7 +57,28 @@ class PDEs():
         self.fx = fx
         self.fy = fy
         self.size = size
+
+class Where_2D():
+    def __init__(self, dm):
+        self.dm = dm
     
+    def __call__(self, x, y):
+        dm = self.dm
+        x_lb = dm['x_lb']
+        x_rb = dm['x_rb']
+        y_lb = dm['y_lb']
+        y_rb = dm['y_rb']
+        
+        res_x = (x - x_lb) * (x - x_rb)
+        res_y = (y - y_lb) * (y - y_rb)
+
+        zeros = torch.zeros(x.shape).cuda()
+        ones = torch.ones(x.shape).cuda()
+        out_x = torch.where(res_x <= 0, ones, zeros)
+        out_y = torch.where(res_y <= 0, ones, zeros)
+        return out_x * out_y
+
+
 class CPINN_2D(nn.Module):
     def __init__(self, domain_no, lb_x, rb_x, lb_y, rb_y, figure_path):
         super(CPINN_2D, self).__init__()
@@ -72,15 +94,34 @@ class CPINN_2D(nn.Module):
         self.domains = [{} for _ in range(domain_no)]
         # to do: make boundaries in 2D
         self.boundaries = []
+        self.wheres = []
+        self.make_wheres()
+
+    def make_wheres(self):
+        for i in range(self.domain_no):
+            self.wheres.append(Where_2D(self.domains[i]))
     
+    def get_wheres(self):
+        return self.wheres
+    
+
     def forward(self, x, y):
         out = 0.0
         models = self.get_models()
         if self.domain_no == 1:
             model1 = models["Model1"]
             return model1(x, y)
-        
         # to do: make forward function in 2D
+        models_num = []
+        where = Where_2D(self.domains)
+        for i in range(self.domain_no):
+            models_num.append(models["Model{}".format(i+1)])
+        for i, model in enumerate(models_num):
+            out += model(x, y) * self.wheres[i](x, y)
+        
+        return out
+
+
         # for i in range(self.domain_no - 1):
         #     bd = self.boundaries[i]
         #     where_1 = Where(bd, 1)
@@ -100,7 +141,7 @@ class CPINN_2D(nn.Module):
     def get_models(self):
         return self.__dict__['_modules']
 
-    # to do: make domains in 2D
+    # make domains in 2D
     def make_domains(self, points_x=None, points_y=None):
         domain_no = self.domain_no
         if points_x and points_y:
@@ -143,7 +184,7 @@ class CPINN_2D(nn.Module):
         elif  ( (y_lb_1, y_rb_1) == (y_lb_2, y_rb_2) ):
             return x_rb_1, x_lb_2, y_lb_1, y_rb_1
 
-    # to do: make boundaries in 2D
+    # make boundaries in 2D
     def make_boundaries(self):
         domain_no = self.domain_no
 
@@ -156,10 +197,7 @@ class CPINN_2D(nn.Module):
         
         print(self.boundaries)
 
-
-        
-    
-    # to do: make plotting domains in 2D
+    # make plotting domains in 2D
     def plot_domains(self):
         dms = self.domains
         bds = self.boundaries
