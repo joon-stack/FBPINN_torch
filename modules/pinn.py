@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import copy
 
 from torch.utils.data import Dataset
@@ -34,10 +36,7 @@ class PINN(nn.Module):
         self.b = 0
 
     def forward(self, x):
-        a = self.a
-        b = self.b
-
-        input_data     = a * x + b
+        input_data     = x
         # print("{}x + {}".format(a, b))
         # print("{:.3f}, {:.3f}".format(x.item(), input_data.item()))
         act_func       = nn.Tanh()
@@ -255,7 +254,7 @@ class CPINN(nn.Module):
             plt.plot((lb, rb), (0, 0), '--', label='Domain {}'.format(n))
 
         for n, bd in enumerate(bds):
-            plt.plot(bd, label='Boundary {}'.format(n))
+            plt.scatter(bd, 0, c=cm.rainbow(n / len(bds)), label='Boundary {}'.format(n))
 
         plt.legend()
         plt.savefig(fpath)
@@ -306,8 +305,12 @@ class CPINN(nn.Module):
             out += ( calc_deriv(bd, c, 1) - calc_deriv(bd, d, 1) ) ** 2
             out += ( calc_deriv(bd, a, 2) - calc_deriv(bd, b, 2) ) ** 2 
             out += ( calc_deriv(bd, c, 2) - calc_deriv(bd, d, 2) ) ** 2 
-            out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3)) ** 2 
-            out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3)) ** 2 
+  
+            P = 0
+            if bd == 0.5:
+                P = 1
+                out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3) + P ) ** 2 
+                out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3) + P ) ** 2 
         out /= len(bds)
         return out 
 
@@ -535,3 +538,10 @@ def draw_convergence_cpinn(epoch, loss_b, loss_f, loss_i, loss, id, figure_path)
     plt.yscale('log')
     plt.legend()
     plt.savefig(fpath)
+
+    csvpath = os.path.join(figure_path, "convergence_model{}.csv".format(id))
+
+    arr = np.array([loss_b, loss_f, loss_i, loss])
+    print(arr.shape)
+    df = pd.DataFrame(arr.T, columns=['Loss_B', 'Loss_F', 'Loss_I', 'Loss'])
+    df.to_csv(csvpath)
