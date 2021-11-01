@@ -247,15 +247,15 @@ class CPINN(nn.Module):
         bds = self.boundaries
 
         plt.cla()
-        fpath = os.path.join(self.figure_path, 'domains.png')
+        fpath = os.path.join(self.figure_path, 'domains.svg')
         for n, dm in enumerate(dms):
             lb = dm['lb']
             rb = dm['rb']
-            plt.plot((lb, rb), (0, 0), '--', label='Domain {}'.format(n))
+            plt.plot((lb, rb), (0, 0), '--', label='Subdomain {}'.format(n+1))
 
-        for n, bd in enumerate(bds):
-            plt.scatter(bd, 0, c=cm.rainbow(n / len(bds)), label='Boundary {}'.format(n))
-
+        # for n, bd in enumerate(bds):
+        #     plt.scatter(bd, 0, c=cm.gray(n / len(bds)), label='Boundary {}'.format(n))
+        plt.scatter(bds, np.zeros(len(bds)), c='k', label='Interfaces')
         plt.legend()
         plt.savefig(fpath)
 
@@ -271,7 +271,7 @@ class CPINN(nn.Module):
             plt.plot(x_cpu, result, label=label)
         plt.legend()
 
-        fpath = os.path.join(self.figure_path, "separate_models.png")
+        fpath = os.path.join(self.figure_path, "separate_models.svg")
         plt.savefig(fpath)
     
     def plot_model(self, x):
@@ -281,7 +281,7 @@ class CPINN(nn.Module):
         pred_cpu = pred.cpu().detach().numpy()
         plt.cla()
         plt.plot(x_cpu, pred_cpu)
-        fpath = os.path.join(self.figure_path, "model.png")
+        fpath = os.path.join(self.figure_path, "model.svg")
         plt.savefig(fpath)
 
     def get_boundary_error(self):
@@ -375,7 +375,7 @@ class CombinedPINN(nn.Module):
         
         plt.legend()
 
-        fpath = os.path.join(self.figure_path, "domains_and_boundaries.png")
+        fpath = os.path.join(self.figure_path, "domains_and_boundaries.svg")
         plt.savefig(fpath)
 
     def make_windows(self):
@@ -406,7 +406,7 @@ class CombinedPINN(nn.Module):
             plt.plot(x_test_plt, res, label=i)
         plt.legend()
 
-        fpath = os.path.join(self.figure_path, "window.png")
+        fpath = os.path.join(self.figure_path, "window.svg")
         plt.savefig(fpath)
 
     def plot_separate_models(self, x):
@@ -421,7 +421,7 @@ class CombinedPINN(nn.Module):
             plt.plot(x_cpu, result, label=label)
         plt.legend()
 
-        fpath = os.path.join(self.figure_path, "separate_models.png")
+        fpath = os.path.join(self.figure_path, "separate_models.svg")
         plt.savefig(fpath)
     
     def plot_model(self, x):
@@ -431,7 +431,7 @@ class CombinedPINN(nn.Module):
         pred_cpu = pred.cpu().detach().numpy()
         plt.cla()
         plt.plot(x_cpu, pred_cpu)
-        fpath = os.path.join(self.figure_path, "model.png")
+        fpath = os.path.join(self.figure_path, "model.svg")
         plt.savefig(fpath)
 
     def forward(self, x):
@@ -516,7 +516,7 @@ def draw_convergence(epoch, loss_b, loss_f, loss, id, figure_path):
     plt.cla()
     x = np.arange(epoch)
 
-    fpath = os.path.join(figure_path, "convergence_model{}.png".format(id))
+    fpath = os.path.join(figure_path, "convergence_model{}.svg".format(id))
 
     plt.plot(x, np.array(loss_b), label='Loss_B')
     plt.plot(x, np.array(loss_f), label='Loss_F')
@@ -529,7 +529,7 @@ def draw_convergence_cpinn(epoch, loss_b, loss_f, loss_i, loss, id, figure_path)
     plt.cla()
     x = np.arange(epoch)
 
-    fpath = os.path.join(figure_path, "convergence_model{}.png".format(id))
+    fpath = os.path.join(figure_path, "convergence_model{}.svg".format(id))
 
     plt.plot(x, np.array(loss_b), label='Loss_B')
     plt.plot(x, np.array(loss_f), label='Loss_F')

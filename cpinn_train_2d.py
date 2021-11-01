@@ -19,10 +19,10 @@ def train(model_path, figure_path):
     # Points
     # points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
     # points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
-    points_x = [(-1.0, 0.0), (0.0, 1.0)]
-    points_y = [(-1.0, 1.0), (-1.0, 1.0)]
-    # points_x = [(-1,0, 1.0)]
-    # points_y = [(-1.0, 1.0)]
+    # points_x = [(-1.0, 0.0), (0.0, 1.0)]
+    # points_y = [(-1.0, 1.0), (-1.0, 1.0)]
+    points_x = [(-1.0, 1.0)]
+    points_y = [(-1.0, 1.0)]
 
     # Set the number of domains
     domain_no = len(points_x)
@@ -53,22 +53,35 @@ def train(model_path, figure_path):
 
     b_size = 100
     f_size = 10000
+    i_size = 100
     epochs = 100000
-    lr = 0.0002
+    lr = 0.0001
     model.to(device)
     
+    dw = 0.0
+    
     bcs = []
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0 - dw, x_rb=-1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=1.0 - dw, x_rb=1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0 - dw, x_rb=0.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0 + dw, y_rb=-1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0 + dw, y_rb=1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 + dw, y_rb=-1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 + dw, y_rb=1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0 + dw, x_rb=-1.0 + dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs(b_size, x_lb=1.0 + dw, x_rb=1.0 + dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0 + dw, x_rb=0.0 + dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+
 
     pdes = []
     # w1 = lambda, w2: mu
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
     
     optims = []
     schedulers = []
@@ -83,9 +96,9 @@ def train(model_path, figure_path):
 
     dms = model.domains
     
-    w_b = 10
+    w_b = 100
     w_f = 1
-    w_i = 1
+    w_i = 0
 
     with open(log_path, 'w') as f:
         f.write("-----------------------------Points-----------------------------\n")
@@ -275,8 +288,8 @@ def train(model_path, figure_path):
                 v_hat_y = calc_deriv(y_f, v_hat, 1)
                 v_hat_y_y = calc_deriv(y_f, v_hat_y, 1)
 
-                loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
-                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), u_f)
+                loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * x_f / 2)), u_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * x_f / 2)), u_f)
                 loss_f *= w_f
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
@@ -286,8 +299,8 @@ def train(model_path, figure_path):
                 # print(x_f, u_f, w1, w2)
 
 
-            # loss_i = model.get_boundary_error() * w_i
-            loss_i = 0.0 
+            loss_i = model.get_boundary_error_2d(i_size) * w_i
+            # loss_i = 0.0 
 
             loss = loss_b + loss_f + loss_i
             loss.backward(retain_graph=True)

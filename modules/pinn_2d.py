@@ -2,11 +2,14 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import copy
 import os
 import time
+
+from modules.utils import *
 
 class PINN(nn.Module):
     def __init__(self, id):
@@ -141,6 +144,49 @@ class CPINN_2D(nn.Module):
     def get_models(self):
         return self.__dict__['_modules']
 
+    def get_boundary_error_2d(self, size):
+        bds = self.boundaries
+        if bds == []:
+            return 0.0
+        out = 0.0
+        dw = 0.0001
+        for bd in bds:
+            x_lb = bd['x_lb']
+            x_rb = bd['x_rb']
+            y_lb = bd['y_lb']
+            y_rb = bd['y_rb']
+
+            if x_lb == x_rb:
+                y = torch.from_numpy(np.random.uniform(y_lb, y_rb, size))
+                x = torch.ones(y.shape) * x_lb
+            elif y_lb == y_rb:
+                x = torch.from_numpy(np.random.uniform(x_lb, x_rb, size))
+                y = torch.ones(y.shape) * y_lb
+            
+            x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda().requires_grad_(True)
+            y = y.unsqueeze(0).T.type(torch.FloatTensor).cuda().requires_grad_(True)
+
+            if x_lb == x_rb:
+                out += ( self(x, y - dw) - self(x, y + dw) ) ** 2
+                out += ( calc_deriv(y, self(x, y - dw), 1) - calc_deriv(y, self(x, y + dw), 1) ) ** 2
+                # out += ( calc_deriv(y, self(x, y - dw), 2) - calc_deriv(y, self(x, y + dw), 2) ) ** 2
+                # out += ( calc_deriv(y, self(x, y - dw), 3) - calc_deriv(y, self(x, y + dw), 3) ) ** 2
+            if y_lb == y_rb:
+                out += ( self(x - dw, y) - self(x + dw, y) ) ** 2
+                out += ( calc_deriv(x, self(x - dw, y), 1) - calc_deriv(x, self(x + dw, y), 1) ) ** 2
+                # out += ( calc_deriv(x, self(x - dw, y), 2) - calc_deriv(x, self(x + dw, y), 2) ) ** 2
+                # out += ( calc_deriv(x, self(x - dw, y), 3) - calc_deriv(x, self(x + dw, y), 3) ) ** 2
+        
+        out = torch.sum(out)
+        # print(out)
+
+        return out
+            
+
+
+                
+
+
     # make domains in 2D
     def make_domains(self, points_x=None, points_y=None):
         domain_no = self.domain_no
@@ -211,7 +257,7 @@ class CPINN_2D(nn.Module):
             y_lb = dm['y_lb']
             y_rb = dm['y_rb']
             x, y = np.meshgrid(np.linspace(x_lb, x_rb, 100), np.linspace(y_lb, y_rb, 100))
-            plt.scatter(x, y, label='Domain {}'.format(dm['id']))
+            plt.scatter(x, y, label='Subdomain {}'.format(dm['id']))
         
         colors = cm.gray(np.linspace(0, 1, len(bds)))
         for n, bd in enumerate(bds):
@@ -219,10 +265,10 @@ class CPINN_2D(nn.Module):
             x_rb = bd['x_rb']
             y_lb = bd['y_lb']
             y_rb = bd['y_rb']
-            plt.plot((x_lb, x_rb), (y_lb, y_rb), '--', linewidth=4, c=colors[n], label='Boundary {}'.format(n))
+            plt.plot((x_lb, x_rb), (y_lb, y_rb), '--', linewidth=4, c=colors[n], label='Interface'.format(n))
         
         plt.legend()
-        fpath = os.path.join(self.figure_path, "domains.png")
+        fpath = os.path.join(self.figure_path, "domains.svg")
         plt.savefig(fpath)
 
     def plot_separate_models(self, x, y):
@@ -238,7 +284,7 @@ class CPINN_2D(nn.Module):
             plt.scatter(x, y, c=result[:,0], label=label)
         plt.legend()
 
-        fpath = os.path.join(self.figure_path, "separate_models.png")
+        fpath = os.path.join(self.figure_path, "separate_models.svg")
         plt.savefig(fpath)
 
     def plot_model(self, x, y):
@@ -251,11 +297,11 @@ class CPINN_2D(nn.Module):
         plt.figure(figsize=(8, 6))
         plt.scatter(x, y, c=pred_cpu[:,0])
         cb = plt.colorbar()
-        fpath = os.path.join(self.figure_path, "model_x.png")
+        fpath = os.path.join(self.figure_path, "model_x.svg")
         plt.savefig(fpath)
         plt.cla()
         plt.scatter(x, y, c=pred_cpu[:,1])
-        fpath = os.path.join(self.figure_path, "model_y.png")
+        fpath = os.path.join(self.figure_path, "model_y.svg")
         plt.savefig(fpath)
         cb.remove()
     
@@ -267,7 +313,7 @@ class CPINN_2D(nn.Module):
         plt.cla()
         x = np.arange(epoch)
 
-        fpath = os.path.join(figure_path, "convergence_model{}.png".format(id))
+        fpath = os.path.join(figure_path, "convergence_model{}.svg".format(id))
 
         plt.plot(x, np.array(loss_b), label='Loss_B')
         plt.plot(x, np.array(loss_f), label='Loss_F')
@@ -276,3 +322,10 @@ class CPINN_2D(nn.Module):
         plt.yscale('log')
         plt.legend()
         plt.savefig(fpath)
+
+        csvpath = os.path.join(figure_path, "convergence_model{}.csv".format(id))
+
+        arr = np.array([loss_b, loss_f, loss_i, loss])
+        print(arr.shape)
+        df = pd.DataFrame(arr.T, columns=['Loss_B', 'Loss_F', 'Loss_I', 'Loss'])
+        df.to_csv(csvpath)

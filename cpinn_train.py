@@ -8,8 +8,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+
 
 from modules.pinn import *
 from modules.generate_data import *
@@ -21,8 +20,8 @@ def train(model_path, figure_path):
 
     # Points
     # points = [-1.0, 0.0 - dx, 0.0 + dx, 1.0]
-    # points = [-1.0, 0.0, 1.0]
-    points = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    points = [-1.0, 0.0, 0.5, 1.0]
+    # points = [-1.0, -0.5, 0.0, 0.5, 1.0]
     # points = [-0.5, 0.5]
     # points = [0.5, 1.0]
     # Set the number of domains
@@ -31,14 +30,6 @@ def train(model_path, figure_path):
     # Set the global left & right boundary of the calculation domain
     global_lb = -1.0
     global_rb = 1.0
-
-    # Batch size
-    batch_size = 100
-
-    # dx
-    dx = 0.001
-
-
 
     # Initialize CPINN model
     model = CPINN(domain_no, global_lb, global_rb, figure_path)
@@ -76,9 +67,10 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
+    # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=1))
     # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
@@ -87,22 +79,27 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
+    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=1))
     # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=2))
 
     pdes = []
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=-0.5))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-dx, rb=dx))
+    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=0.0))
+    pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.0, rb=0.5))
     pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
+    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
+    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
+    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-dx, rb=dx))
+    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
     # pdes.append(PDEs(f_size, w1=1, w2=10, lb=-0.05, rb=0.05))
     # pdes.append(PDEs(f_size, w1=1, w2=0, lb=0.0, rb=1.0)) 
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-0.5, rb=0.0))
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.0, rb=0.5))
+    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-0.5, rb=0.0))
+    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.0, rb=0.5))
     # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=1.0))
     # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=1.0))
 
@@ -249,6 +246,7 @@ def train(model_path, figure_path):
             u_fs = u_fs_train[i]
             pde_weights = pdes_weights_train[i]
 
+
             for j, x_b in enumerate(x_bs):
                 u_b = u_bs[j]
                 x_b = x_b.cuda()
@@ -264,13 +262,19 @@ def train(model_path, figure_path):
                 # print(loss_b.item())
             
             for j, x_f in enumerate(x_fs):
+                # print(j)
                 u_f = u_fs[j]
                 x_f = x_f.cuda()
                 u_f = u_f.cuda()
                 w1 = pde_weights['w1']
                 w2 = pde_weights['w2']
                 # print(x_f, u_f, w1, w2)
-                loss_f = loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2, u_f) * w_f
+                zeros = torch.zeros(x_f.shape).cuda()
+                ones = torch.ones(x_f.shape).cuda()
+                loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * ( torch.where(0 > x_f, ones * torch.sin(-np.pi * x_f), zeros) + torch.where(0.25 < x_f, ones, zeros) * torch.where(0.75 > x_f, ones, zeros)), u_f) * w_f
+                # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * torch.cos(x_f * np.pi / 2), u_f) * w_f
+                # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2, u_f) * w_f
+                
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
                 # print(calc_deriv(x_f, model(x_f), 4).item())
