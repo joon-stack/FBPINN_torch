@@ -28,7 +28,6 @@ class PINN(nn.Module):
         self.hidden_layer2      = nn.Linear(40, 40)
         self.hidden_layer3      = nn.Linear(40, 40)
         self.hidden_layer4      = nn.Linear(40, 40)
-        # self.hidden_layer5      = nn.Linear(40, 40)
         self.output_layer       = nn.Linear(40, 1)
 
         # t = ax + b
@@ -44,25 +43,58 @@ class PINN(nn.Module):
         a_layer2       = act_func(self.hidden_layer2(a_layer1))
         a_layer3       = act_func(self.hidden_layer3(a_layer2))
         a_layer4       = act_func(self.hidden_layer4(a_layer3))
-        # a_layer5       = act_func(self.hidden_layer5(a_layer4))
+        out            = self.output_layer(a_layer4)
+
+        return out
+
+class PINN_surrogate(nn.Module):
+    def __init__(self, id):
+        super(PINN_surrogate, self).__init__()
+
+        self.id = id
+
+        self.lb = -1.0
+        self.rb = 1.0
+
+        self.hidden_layer1      = nn.Linear(2, 40)
+        self.hidden_layer2      = nn.Linear(40, 40)
+        self.hidden_layer3      = nn.Linear(40, 40)
+        self.hidden_layer4      = nn.Linear(40, 40)
+        self.output_layer       = nn.Linear(40, 1)
+
+        # t = ax + b
+        self.a = 1
+        self.b = 0
+
+    def forward(self, x, e):
+        input_data     = torch.cat((x, e), axis=1)
+        # print("{}x + {}".format(a, b))
+        # print("{:.3f}, {:.3f}".format(x.item(), input_data.item()))
+        act_func       = nn.Tanh()
+        a_layer1       = act_func(self.hidden_layer1(input_data))
+        a_layer2       = act_func(self.hidden_layer2(a_layer1))
+        a_layer3       = act_func(self.hidden_layer3(a_layer2))
+        a_layer4       = act_func(self.hidden_layer4(a_layer3))
         out            = self.output_layer(a_layer4)
 
         return out
 
 class BCs():
-    def __init__(self, size, x, u, deriv):
+    def __init__(self, size, x, u, deriv, W=None):
         self.size = size
         self.x = x
         self.u = u
         self.deriv = deriv
+        self.W = W
 
 class PDEs():
-    def __init__(self, size, w1, w2, lb, rb):
+    def __init__(self, size, w1, w2, lb, rb, W=None):
         self.size = size
         self.w1 = w1
         self.w2 = w2
         self.lb = lb
         self.rb = rb
+        self.W = W
 
 class Relu():
     def __init__(self, lb, rb, i):
@@ -163,7 +195,159 @@ class Window():
 
     def append_funcs(self, func):
         self.funcs.append(func)
+
+class CPINN_surrogate(nn.Module):
+    def __init__(self, domain_no, lb, rb, figure_path):
+        super(CPINN_surrogate, self).__init__()
+        self.domain_no = domain_no
+        self.lb = lb
+        self.rb = rb
+        self.figure_path = figure_path
+        self.length = rb - lb
+
+        self.domains = [{} for _ in range(self.domain_no)]
+        self.boundaries = [ None for _ in range(self.domain_no - 1)]
+
+    def forward(self, x, e):
+        out = 0.0
+
+        models = self.get_models()
+        if self.domain_no == 1:
+            model1 = models["Model1"]
+            return model1(x, e)
         
+        for i in range(self.domain_no - 1):
+            bd = self.boundaries[i]
+            where_1 = Where(bd, 1)
+            where_2 = Where(bd, 0)
+            
+            model1 = models["Model{}".format(i+1)]
+            model2 = models["Model{}".format(i+2)]
+            
+            out += model1(x, e) * where_1(x, e) + model2(x, e) * where_2(x, e)
+            # print("{:.2f}".format(x.item()), where_1(x).item(), where_2(x).item())
+            # print("{:.2f}".format(out.item()))
+        return out
+
+    def module_update(self, dict):
+        self.__dict__['_modules'].update(dict)
+
+    def get_models(self):
+        return self.__dict__['_modules']
+
+    def make_domains(self, points=None):
+        if points:
+            points_copy = copy.copy(points)
+
+            for i in range(self.domain_no):
+                self.domains[i]['lb'] = points_copy[i]
+                self.domains[i]['rb'] = points_copy[i + 1]
+        else:
+            length = self.length
+            size = length / self.domain_no
+            # print(size)
+            for i in range(self.domain_no):
+                self.domains[i]['lb'] = self.lb + size * i
+                self.domains[i]['rb'] = self.lb + size * (i + 1)
+
+        # to do: make mapping? kind of Jacobian
+        length = self.length
+        for i in range(self.domain_no):
+            # t = ax + b
+            lb = self.domains[i]['lb']
+            rb = self.domains[i]['rb']
+            domain_size = rb - lb
+            a = length / domain_size
+            self.domains[i]['a'] = a
+            self.domains[i]['b'] = -1 - lb * a
+
+
+    def make_boundaries(self, points=None):
+        if points:
+            self.boundaries = points[1:-1]
+        else:
+            lb = self.lb
+            length = self.length
+            size = length / self.domain_no
+            for i in range(self.domain_no - 1):
+                self.boundaries[i] = lb + size * (i + 1)
+            
+        
+
+    def plot_domains(self):
+        dms = self.domains
+        bds = self.boundaries
+
+        plt.cla()
+        fpath = os.path.join(self.figure_path, 'domains.svg')
+        for n, dm in enumerate(dms):
+            lb = dm['lb']
+            rb = dm['rb']
+            plt.plot((lb, rb), (0, 0), '--', label='Subdomain {}'.format(n+1))
+
+        # for n, bd in enumerate(bds):
+        #     plt.scatter(bd, 0, c=cm.gray(n / len(bds)), label='Boundary {}'.format(n))
+        plt.scatter(bds, np.zeros(len(bds)), c='k', label='Interfaces')
+        plt.legend()
+        plt.savefig(fpath)
+
+    def plot_separate_models(self, x):
+        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
+        plt.cla()
+        models = self.get_models()
+        for i, key in enumerate(models.keys()):
+            model = models[key]
+            label = 'Model_{}'.format(i)
+            x_cpu = x.cpu().detach().numpy()
+            result = (model(x)).cpu().detach().numpy()
+            plt.plot(x_cpu, result, label=label)
+        plt.legend()
+
+        fpath = os.path.join(self.figure_path, "separate_models.svg")
+        plt.savefig(fpath)
+    
+    def plot_model(self, x):
+        x = x.unsqueeze(0).T.type(torch.FloatTensor).cuda()
+        pred = self(x)
+        x_cpu = x.cpu().detach().numpy()
+        pred_cpu = pred.cpu().detach().numpy()
+        plt.cla()
+        plt.plot(x_cpu, pred_cpu)
+        fpath = os.path.join(self.figure_path, "model.svg")
+        plt.savefig(fpath)
+
+    def get_boundary_error(self):
+        out = 0.0
+        models = self.get_models()
+        bds = self.boundaries
+        if len(bds) == 0:
+            return 0.0
+        # print(bds)
+        dw = 0.00001
+        for i, bd in enumerate(bds, 1):
+            
+            bd = torch.tensor(bd).unsqueeze(0).T.type(torch.FloatTensor).cuda().requires_grad_(True)
+            a = models["Model{}".format(i)](bd - dw)
+            b = models["Model{}".format(i + 1)](bd - dw)
+            c = models["Model{}".format(i)](bd + dw)
+            d = models["Model{}".format(i + 1)](bd + dw)
+            out += ( a - b ) ** 2
+            out += ( calc_deriv(bd, a, 1) - calc_deriv(bd, b, 1) ) ** 2
+            out += ( c - d ) ** 2
+            out += ( calc_deriv(bd, c, 1) - calc_deriv(bd, d, 1) ) ** 2
+            out += ( calc_deriv(bd, a, 2) - calc_deriv(bd, b, 2) ) ** 2 
+            out += ( calc_deriv(bd, c, 2) - calc_deriv(bd, d, 2) ) ** 2 
+            out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3) ) ** 2 
+            out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3) ) ** 2 
+  
+            P = 0
+            # if bd == 0.5:
+            #     P = 1
+            #     out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3) + P ) ** 2 
+            #     out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3) + P ) ** 2 
+        out /= len(bds)
+        return out 
+
 class CPINN(nn.Module):
     def __init__(self, domain_no, lb, rb, figure_path):
         super(CPINN, self).__init__()
@@ -305,12 +489,14 @@ class CPINN(nn.Module):
             out += ( calc_deriv(bd, c, 1) - calc_deriv(bd, d, 1) ) ** 2
             out += ( calc_deriv(bd, a, 2) - calc_deriv(bd, b, 2) ) ** 2 
             out += ( calc_deriv(bd, c, 2) - calc_deriv(bd, d, 2) ) ** 2 
+            out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3) ) ** 2 
+            out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3) ) ** 2 
   
             P = 0
-            if bd == 0.5:
-                P = 1
-                out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3) + P ) ** 2 
-                out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3) + P ) ** 2 
+            # if bd == 0.5:
+            #     P = 1
+            #     out += ( calc_deriv(bd, a, 3) - calc_deriv(bd, b, 3) + P ) ** 2 
+            #     out += ( calc_deriv(bd, c, 3) - calc_deriv(bd, d, 3) + P ) ** 2 
         out /= len(bds)
         return out 
 

@@ -32,14 +32,14 @@ def train(model_path, figure_path):
     global_rb = 1.0
 
     # Initialize CPINN model
-    model = CPINN(domain_no, global_lb, global_rb, figure_path)
+    model = CPINN_surrogate(domain_no, global_lb, global_rb, figure_path)
     model.make_domains(points)
     model.make_boundaries(points)
     model.plot_domains()
 
     dms = model.domains
     
-    sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
+    sample = {'Model{}'.format(i+1): PINN_surrogate(i) for i in range(domain_no)}
 
     # for i, dm in enumerate(dms):
     #     a = dm['a']
@@ -56,57 +56,35 @@ def train(model_path, figure_path):
     print("Current device:", device)
 
     b_size = 100
-    f_size = 100
+    f_size = 10000
     epochs = 10000
     lr = 0.0001
     model.to(device)
 
-    dw = 0.00001
-    
+    dw = 0.0
+    # W = [1, 2, 3, 4, 5]
+    W = [0.1, 0.5, 1]
     bcs = []
-        pdes = []
-    bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
-    # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=1))
-    # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=2))
+    pdes = []
 
-    bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=2))
-    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
-    # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=1))
-    # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
-    # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=2))
+    for w in W:
+    
+        bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=0, W=w))
+        # bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
+        bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2, W=w))
+        bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0, W=w))
+        bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2, W=w))
 
+        # bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=0, W=w))
+        # # bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
+        # bcs.append(BCs(b_size, x=-1.0 - dw, u=0.0, deriv=2, W=w))
+        # bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0, W=w))
+        # bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2, W=w))
 
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=-0.5))
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=-0.5, rb=0.0))
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.0, rb=0.5))
-    pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-dx, rb=dx))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.5, rb=1.0))
-    # pdes.append(PDEs(f_size, w1=1, w2=10, lb=-0.05, rb=0.05))
-    # pdes.append(PDEs(f_size, w1=1, w2=0, lb=0.0, rb=1.0)) 
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-0.5, rb=0.0))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=0.0, rb=0.5))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=1.0))
-    # pdes.append(PDEs(f_size, w1=1, w2=1, lb=-1.0, rb=1.0))
+      
+        pdes.append(PDEs(f_size, w1=1, w2=w, lb=-1.0, rb=1.0, W=w))
 
     
-
     optims = []
     schedulers = []
 
@@ -120,7 +98,7 @@ def train(model_path, figure_path):
 
     dms = model.domains
     
-    w_b = 100
+    w_b = 1
     w_f = 1
     w_i = 1
 
@@ -155,30 +133,37 @@ def train(model_path, figure_path):
     u_bs = []
     x_fs = []
     u_fs = []
+    e_bs = []
+    e_fs = []
 
     x_derivs = []
     x_derivs_train = [[] for _ in range(domain_no)]
 
     x_bs_train = [[] for _ in range(domain_no)]
     u_bs_train = [[] for _ in range(domain_no)]
+    e_bs_train = [[] for _ in range(domain_no)]
 
     x_fs_train = [[] for _ in range(domain_no)]
     u_fs_train = [[] for _ in range(domain_no)]
+    e_fs_train = [[] for _ in range(domain_no)]
 
     
     pdes_weights = []
-    pdes_weights_train = [{} for _ in range(domain_no)]
+    # pdes_weights_train = [{} for _ in range(domain_no)]
+    pdes_weights_train = [[] for _ in range(domain_no)]
 
     for bc in bcs:
-        x_b, u_b = make_training_boundary_data(b_size=bc.size, x=bc.x, u=bc.u)
+        x_b, u_b, e_b = make_training_boundary_data_surrogate(b_size=bc.size, x=bc.x, u=bc.u, w=bc.W)
         x_bs.append(x_b)
         u_bs.append(u_b)
+        e_bs.append(e_b)
         x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv)
 
     for pde in pdes:
-        x_f, u_f = make_training_collocation_data(f_size=pde.size, x_lb=pde.lb, x_rb=pde.rb)
+        x_f, u_f, e_f = make_training_collocation_data_surrogate(f_size=pde.size, x_lb=pde.lb, x_rb=pde.rb, w=bc.W)
         x_fs.append(x_f)
         u_fs.append(u_f)
+        e_fs.append(e_f)
         pdes_weights.append((pde.w1, pde.w2))
         # pdes_weights.append((1, 1))
 
@@ -194,16 +179,19 @@ def train(model_path, figure_path):
 
         for j, x_b in enumerate(x_bs):
             u_b = u_bs[j]
+            e_b = e_bs[j]
             x_deriv = x_derivs[j]
             x = x_b[0]
             # print(lb, rb)
             if lb <= x <= rb:
                 x_bs_train[i].append(x_b)
                 u_bs_train[i].append(u_b)
+                e_bs_train[i].append(e_b)
                 x_derivs_train[i].append(x_deriv)
         
         for j, x_f in enumerate(x_fs):
             u_f = u_fs[j]
+            e_f = e_fs[j]
             x = ( pdes[j].lb + pdes[j].rb ) / 2
             
             pde_weights = pdes_weights[j]
@@ -213,8 +201,10 @@ def train(model_path, figure_path):
                 # print(lb, x, rb, i)
                 x_fs_train[i].append(x_f)
                 u_fs_train[i].append(u_f)
-                pdes_weights_train[i]['w1'] = pde_weights[0]
-                pdes_weights_train[i]['w2'] = pde_weights[1]
+                e_fs_train[i].append(e_f)
+                pdes_weights_train[i].append(pde_weights)
+                # pdes_weights_train[i]['w1'] = pde_weights[0]
+                # pdes_weights_train[i]['w2'] = pde_weights[1]
 
     print(pdes_weights_train)
     # print(x_bs_train)
@@ -242,22 +232,26 @@ def train(model_path, figure_path):
 
             x_bs = x_bs_train[i]
             u_bs = u_bs_train[i]
+            e_bs = e_bs_train[i]
             x_derivs = x_derivs_train[i]
 
             x_fs = x_fs_train[i]
             u_fs = u_fs_train[i]
+            e_fs = e_fs_train[i]
             pde_weights = pdes_weights_train[i]
 
 
             for j, x_b in enumerate(x_bs):
                 u_b = u_bs[j]
+                e_b = e_bs[j]
                 x_b = x_b.cuda()
                 u_b = u_b.cuda()
+                e_b = e_b.cuda()
                 x_deriv = x_derivs[j]
                 # print(x_deriv)
                 # print(x_b, u_b, x_deriv)
                 # print(model(x_b).item(), u_b.item())
-                loss_b += loss_func(calc_deriv(x_b, model(x_b), x_deriv[0]), u_b) * w_b
+                loss_b += loss_func(calc_deriv(x_b, model(x_b, e_b), x_deriv[0]), u_b) * w_b
                 # print("BCs---------------------")
                 # print(calc_deriv(x_b, model(x_b), x_deriv[0]).item())
                 # print(model(x_b).item(), u_b.item())
@@ -266,16 +260,20 @@ def train(model_path, figure_path):
             for j, x_f in enumerate(x_fs):
                 # print(j)
                 u_f = u_fs[j]
+                e_f = e_fs[j]
                 x_f = x_f.cuda()
                 u_f = u_f.cuda()
-                w1 = pde_weights['w1']
-                w2 = pde_weights['w2']
+                e_f = e_f.cuda()
+                # w1 = pde_weights['w1']
+                # w2 = pde_weights['w2']
+                w1 = pde_weights[j][0]
+                w2 = pde_weights[j][1]
                 # print(x_f, u_f, w1, w2)
                 zeros = torch.zeros(x_f.shape).cuda()
                 ones = torch.ones(x_f.shape).cuda()
                 # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * ( torch.where(0 > x_f, ones * torch.sin(-np.pi * x_f), zeros) + torch.where(0.25 < x_f, ones, zeros) * torch.where(0.75 > x_f, ones, zeros)), u_f) * w_f
                 # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * torch.cos(x_f * np.pi / 2), u_f) * w_f
-                loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2, u_f) * w_f
+                loss_f += loss_func(calc_deriv(x_f, model(x_f, e_f), 4) * w1 - 1 * w2, u_f) * w_f
                 
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
@@ -304,9 +302,9 @@ def train(model_path, figure_path):
             loss_plt[i].append(loss.item())
             # scheduler.step(loss)
             
-            if epoch % 50 == 1:
-                model.plot_model(x_plt)
-                model.plot_separate_models(x_plt)
+            # if epoch % 50 == 1:
+            #     model.plot_model(x_plt)
+            #     model.plot_separate_models(x_plt)
 
             with torch.no_grad():
                 model.eval()

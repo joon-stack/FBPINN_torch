@@ -19,10 +19,10 @@ def train(model_path, figure_path):
     # Points
     # points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
     # points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
-    points_x = [(-1.0, 0.0), (0.0, 1.0)]
-    points_y = [(-1.0, 1.0), (-1.0, 1.0)]
-    # points_x = [(-1.0, 1.0)]
-    # points_y = [(-1.0, 1.0)]
+    # points_x = [(-1.0, 0.0), (0.0, 1.0)]
+    # points_y = [(-1.0, 1.0), (-1.0, 1.0)]
+    points_x = [(-1.0, 1.0)]
+    points_y = [(-1.0, 1.0)]
     # points_x = [(-1.0, 0.0)]
     # points_y = [(-1.0, 1.0)]
 
@@ -41,14 +41,14 @@ def train(model_path, figure_path):
     # global_rb_y = 1.0
 
     # Initialize CPINN model
-    model = CPINN_2D(domain_no, global_lb_x, global_rb_x, global_lb_y, global_rb_y, figure_path)
+    model = CPINN_2D_surrogate(domain_no, global_lb_x, global_rb_x, global_lb_y, global_rb_y, figure_path)
 
     # to do
     model.make_domains(points_x, points_y)
     model.make_boundaries()
     model.plot_domains()
     
-    sample = {'Model{}'.format(i+1): PINN(i) for i in range(domain_no)}
+    sample = {'Model{}'.format(i+1): PINN_surrogate(i) for i in range(domain_no)}
 
     model.module_update(sample)
     
@@ -67,21 +67,34 @@ def train(model_path, figure_path):
     
     dw = 0.0
 
+    # E = [2, 4, 6, 8]
+    E = [2, 4, 6, 8, 10]
 
-    
     bcs = []
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0 - dw, x_rb=-1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=1.0 - dw, x_rb=1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    # bcs.append(BCs(b_size, x_lb=0.0 - dw, x_rb=0.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-
     pdes = []
+
+    for e in E:
+        
+        bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0, E=e))
+        bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0, E=e))
+        bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0, E=e))
+        bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0, E=e))
+        bcs.append(BCs(b_size, x_lb=-1.0 - dw, x_rb=-1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0, E=e))
+        bcs.append(BCs(b_size, x_lb=1.0 - dw, x_rb=1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0, E=e))
+        # bcs.append(BCs(b_size, x_lb=0.0 - dw, x_rb=0.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+
+        # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 + dw, y_rb=-1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+        # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+        # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 + dw, y_rb=1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+        # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 + dw, y_rb=1.0 + dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+        # bcs.append(BCs(b_size, x_lb=-1.0 + dw, x_rb=-1.0 + dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+        # bcs.append(BCs(b_size, x_lb=1.0 + dw, x_rb=1.0 + dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+        # bcs.append(BCs(b_size, x_lb=0.0 + dw, x_rb=0.0 + dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+
+
     # w1 = lambda, w2: mu
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
+        pdes.append(PDEs(f_size, w1=0, w2=e/2, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0, E=e))
+        pdes.append(PDEs(f_size, w1=0, w2=e/2, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, E=e))
     
     optims = []
     schedulers = []
@@ -142,6 +155,9 @@ def train(model_path, figure_path):
     u_fs = []
     v_fs = []
 
+    e_bs = []
+    e_fs = []
+
     x_derivs = []
     y_derivs = []
     x_derivs_train = [[] for _ in range(domain_no)]
@@ -151,18 +167,20 @@ def train(model_path, figure_path):
     y_bs_train = [[] for _ in range(domain_no)]
     u_bs_train = [[] for _ in range(domain_no)]
     v_bs_train = [[] for _ in range(domain_no)]
+    e_bs_train = [[] for _ in range(domain_no)]
 
     x_fs_train = [[] for _ in range(domain_no)]
     y_fs_train = [[] for _ in range(domain_no)]
     u_fs_train = [[] for _ in range(domain_no)]
     v_fs_train = [[] for _ in range(domain_no)]
+    e_fs_train = [[] for _ in range(domain_no)]
 
     
     pdes_weights = []
     pdes_weights_train = [{} for _ in range(domain_no)]
 
     for bc in bcs:
-        x_b, y_b, u_b, v_b = make_training_boundary_data_2d(size=bc.size, x_lb=bc.x_lb, x_rb=bc.x_rb, y_lb=bc.y_lb, y_rb=bc.y_rb, u=bc.u, v=bc.v)
+        x_b, y_b, u_b, v_b, e_b = make_training_boundary_data_2d_surrogate(size=bc.size, x_lb=bc.x_lb, x_rb=bc.x_rb, y_lb=bc.y_lb, y_rb=bc.y_rb, u=bc.u, v=bc.v, E=bc.E)
         x_bs.append(x_b)
         y_bs.append(y_b)
         # if bc.y_lb == bc.y_rb:
@@ -171,13 +189,15 @@ def train(model_path, figure_path):
         v_bs.append(v_b)
         x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv_x)
         y_derivs.append(torch.ones(y_b.shape).type(torch.IntTensor) * bc.deriv_y)
+        e_bs.append(e_b)
 
     for pde in pdes:
-        x_f, y_f, u_f, v_f = make_training_collocation_data_2d(size=pde.size, x_lb=pde.x_lb, x_rb=pde.x_rb, y_lb=pde.y_lb, y_rb=pde.y_rb)
+        x_f, y_f, u_f, v_f, e_f = make_training_collocation_data_2d_surrogate(size=pde.size, x_lb=pde.x_lb, x_rb=pde.x_rb, y_lb=pde.y_lb, y_rb=pde.y_rb, E=pde.E)
         x_fs.append(x_f)
         y_fs.append(y_f)
         u_fs.append(u_f)
         v_fs.append(v_f)
+        e_fs.append(e_f)
         pdes_weights.append((pde.w1, pde.w2, pde.fx, pde.fy))
 
     for i, dm in enumerate(dms):
@@ -204,6 +224,7 @@ def train(model_path, figure_path):
                 y_bs_train[i].append(y_b)
                 u_bs_train[i].append(u_b)
                 v_bs_train[i].append(v_b)
+                e_bs_train[i].append(e_b)
                 x_derivs_train[i].append(x_deriv)
                 y_derivs_train[i].append(y_deriv)
         
@@ -220,6 +241,7 @@ def train(model_path, figure_path):
                 y_fs_train[i].append(y_f)
                 u_fs_train[i].append(u_f)
                 v_fs_train[i].append(v_f)
+                e_fs_train[i].append(e_f)
                 pdes_weights_train[i]['w1'] = pde_weights[0]
                 pdes_weights_train[i]['w2'] = pde_weights[1]
                 pdes_weights_train[i]['fx'] = pde_weights[2]
@@ -252,6 +274,7 @@ def train(model_path, figure_path):
             y_bs = y_bs_train[i]
             u_bs = u_bs_train[i]
             v_bs = v_bs_train[i]
+            e_bs = e_bs_train[i]
             x_derivs = x_derivs_train[i]
             y_derivs = y_derivs_train[i]
 
@@ -259,22 +282,25 @@ def train(model_path, figure_path):
             y_fs = y_fs_train[i]
             u_fs = u_fs_train[i]
             v_fs = v_fs_train[i]
+            e_fs = e_fs_train[i]
             pde_weights = pdes_weights_train[i]
 
             # print("Domain {}".format(i))
-            for j, (x_b, y_b) in enumerate(zip(x_bs, y_bs)):
+            for j, (x_b, y_b, e_b) in enumerate(zip(x_bs, y_bs, e_bs)):
                 u_b = u_bs[j]
                 v_b = v_bs[j]
+                e_b = e_bs[j]
                 x_b = x_b.cuda()
                 y_b = y_b.cuda()
                 u_b = u_b.cuda()
                 v_b = v_b.cuda()
+                e_b = e_b.cuda()
                 x_deriv = x_derivs[j]
                 y_deriv = y_derivs[j]
                 # print("Boundary")
                 # print("x_max: {:.3f}, x_min: {:.3f}, y_max: {:.3f}, y_min: {:.3f}, u: {:.3f}, v: {:.3f}".format(torch.max(x_b).item(), torch.min(x_b).item(), torch.max(y_b).item(),  torch.min(y_b).item(), torch.max(u_b).item(), torch.max(v_b).item()))
                 # to be modified when the deriv. is greater than 0
-                aa = calc_deriv(x_b, model(x_b, y_b), x_deriv[0])
+                aa = calc_deriv(x_b, model(x_b, y_b, e_b), x_deriv[0])
 
                 loss_b += loss_func(calc_deriv(y_b, aa, y_deriv[0]), torch.cat((u_b, v_b), axis=1)) * w_b
             # print(loss_b)
@@ -282,10 +308,12 @@ def train(model_path, figure_path):
             for j, (x_f, y_f) in enumerate(zip(x_fs, y_fs)):
                 u_f = u_fs[j]
                 v_f = v_fs[j]
+                e_f = e_fs[j]
                 x_f = x_f.cuda()
                 y_f = y_f.cuda()
                 u_f = u_f.cuda()
                 v_f = v_f.cuda()
+                e_f = e_f.cuda()
                 w1 = pde_weights['w1']
                 w2 = pde_weights['w2']
                 fx = pde_weights['fx']
@@ -295,18 +323,18 @@ def train(model_path, figure_path):
                 # print("x: {:.3f}, y: {:.3f}, u: {:.3f}, v: {:.3f}".format(x_f.item(), y_f.item(), u_f.item(), v_f.item()))
                 # print(w1, w2, fx, fy)
                 # print(x_f, u_f, w1, w2)
-                u_hat = model(x_f, y_f)[:,0]
-                v_hat = model(x_f, y_f)[:,1]
+                u_hat = model(x_f, y_f, e_f)[:,0]
+                v_hat = model(x_f, y_f, e_f)[:,1]
                 u_hat_x = calc_deriv(x_f, u_hat, 1)
                 u_hat_x_x = calc_deriv(x_f, u_hat_x, 1)
                 u_hat_y_y = calc_deriv(y_f, u_hat, 2)
                 v_hat_x_x = calc_deriv(x_f, v_hat, 2)
                 v_hat_y = calc_deriv(y_f, v_hat, 1)
                 v_hat_y_y = calc_deriv(y_f, v_hat_y, 1)
-                # loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
-                # loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), v_f)
-                loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 10 * y_f), u_f)
-                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * y_f / 2) * torch.cos(np.pi * x_f) * 10 * x_f), v_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), v_f)
+                # loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 10 * y_f), u_f)
+                # loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * y_f / 2) * torch.cos(np.pi * x_f) * 10 * x_f), v_f)
                 loss_f *= w_f
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
@@ -365,7 +393,7 @@ def model_test():
     global_rb_y = 1.0
 
     # Initialize CPINN model
-    model = CPINN_2D(domain_no, global_lb_x, global_rb_x, global_lb_y, global_rb_y, figure_path=None)
+    model = CPINN_2D_surrogate(domain_no, global_lb_x, global_rb_x, global_lb_y, global_rb_y, figure_path=None)
 
     # to do
     model.make_domains(points_x, points_y)
