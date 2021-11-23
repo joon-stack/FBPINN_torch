@@ -56,14 +56,14 @@ def train(model_path, figure_path):
     print("Current device:", device)
 
     b_size = 100
-    f_size = 10000
+    f_size = 100
     epochs = 10000
     lr = 0.0001
     model.to(device)
 
     dw = 0.0
-    # W = [1, 2, 3, 4, 5]
-    W = [0.1, 0.5, 1]
+    W = [0.1, 0.5, 1, 2, 3, 4, 5, 10]
+    # W = [0.1, 0.5, 1]
     bcs = []
     pdes = []
 
@@ -160,7 +160,7 @@ def train(model_path, figure_path):
         x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv)
 
     for pde in pdes:
-        x_f, u_f, e_f = make_training_collocation_data_surrogate(f_size=pde.size, x_lb=pde.lb, x_rb=pde.rb, w=bc.W)
+        x_f, u_f, e_f = make_training_collocation_data_surrogate(f_size=pde.size, x_lb=pde.lb, x_rb=pde.rb, w=pde.W)
         x_fs.append(x_f)
         u_fs.append(u_f)
         e_fs.append(e_f)
@@ -195,7 +195,7 @@ def train(model_path, figure_path):
             x = ( pdes[j].lb + pdes[j].rb ) / 2
             
             pde_weights = pdes_weights[j]
-            
+            # print(pde_weights)
             # must be modified when the governing equation is changed
             if lb <= x <= rb:
                 # print(lb, x, rb, i)
@@ -206,7 +206,7 @@ def train(model_path, figure_path):
                 # pdes_weights_train[i]['w1'] = pde_weights[0]
                 # pdes_weights_train[i]['w2'] = pde_weights[1]
 
-    print(pdes_weights_train)
+    # print(pdes_weights_train)
     # print(x_bs_train)
     # print(x_fs_train)
     loss_save = np.inf
@@ -239,7 +239,6 @@ def train(model_path, figure_path):
             u_fs = u_fs_train[i]
             e_fs = e_fs_train[i]
             pde_weights = pdes_weights_train[i]
-
 
             for j, x_b in enumerate(x_bs):
                 u_b = u_bs[j]
@@ -274,6 +273,8 @@ def train(model_path, figure_path):
                 # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * ( torch.where(0 > x_f, ones * torch.sin(-np.pi * x_f), zeros) + torch.where(0.25 < x_f, ones, zeros) * torch.where(0.75 > x_f, ones, zeros)), u_f) * w_f
                 # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * torch.cos(x_f * np.pi / 2), u_f) * w_f
                 loss_f += loss_func(calc_deriv(x_f, model(x_f, e_f), 4) * w1 - 1 * w2, u_f) * w_f
+
+                # print(x_f.item(), u_f.item(), e_f.item())
                 
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
