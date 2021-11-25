@@ -59,7 +59,7 @@ def train(model_path, figure_path):
     print("Current device:", device)
 
     b_size = 100
-    f_size = 10000
+    f_size = 10000 // 2
     i_size = 100
     epochs = 100000
     lr = 0.0001
@@ -70,18 +70,58 @@ def train(model_path, figure_path):
 
     
     bcs = []
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0 - dw, x_rb=-1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=1.0 - dw, x_rb=1.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    # bcs.append(BCs(b_size, x_lb=0.0 - dw, x_rb=0.0 - dw, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=-0.25, x_rb=-0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0,))
+    bcs.append(BCs(b_size, x_lb=0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.0, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
+    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.25, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
+    bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.0, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    bcs.append(BCs(b_size, x_lb=-0.0, x_rb=0.25, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=1, deriv_v_y=0))
+    
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0,, only_compare_v=True))
+    
+    # concentrate 4
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=-0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0,))
+    # bcs.append(BCs(b_size, x_lb=0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.25, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.25, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=-0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.25, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.25, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_v_y=0))
 
     pdes = []
     # w1 = lambda, w2: mu
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=1.0))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-0.25))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=0.25, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=-0.25, y_rb=0.25))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=-0.25, y_rb=0.25))
+
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-0.25))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=0.25, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=-0.25, y_rb=0.25))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=-0.25, y_rb=0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, is_circle=True, inside=False))
+    
+    # fpath = './models/2d_plane_stress_conc_15.data'
+    # state_dict = torch.load(fpath)
+
+    # model.load_state_dict(state_dict)
+
+    # model = model.cuda()
     
     optims = []
     schedulers = []
@@ -115,8 +155,8 @@ def train(model_path, figure_path):
             f.write("y: {} ~ {}\n".format(bc.y_lb, bc.y_rb))
             f.write("u: {}\n".format(bc.u))
             f.write("v: {}\n".format(bc.v))
-            f.write("deriv_x: {}\n".format(bc.deriv_x))
-            f.write("deriv_y: {}\n".format(bc.deriv_y))
+            f.write("deriv_u_x: {}\n".format(bc.deriv_u_x))
+            f.write("deriv_v_y: {}\n".format(bc.deriv_v_y))
         f.write("-----------------------------PDEs-----------------------------\n")
         for n, pde in enumerate(pdes):
             f.write("PDE {}\n".format(n))
@@ -142,10 +182,15 @@ def train(model_path, figure_path):
     u_fs = []
     v_fs = []
 
-    x_derivs = []
-    y_derivs = []
-    x_derivs_train = [[] for _ in range(domain_no)]
-    y_derivs_train = [[] for _ in range(domain_no)]
+    u_x_derivs = []
+    v_y_derivs = []
+    u_x_derivs_train = [[] for _ in range(domain_no)]
+    v_y_derivs_train = [[] for _ in range(domain_no)]
+
+    v_x_derivs = []
+    u_y_derivs = []
+    v_x_derivs_train = [[] for _ in range(domain_no)]
+    u_y_derivs_train = [[] for _ in range(domain_no)]
 
     x_bs_train = [[] for _ in range(domain_no)]
     y_bs_train = [[] for _ in range(domain_no)]
@@ -160,20 +205,41 @@ def train(model_path, figure_path):
     
     pdes_weights = []
     pdes_weights_train = [{} for _ in range(domain_no)]
+    
+    bcs_compare_what = []
+    bcs_compare_what_train = [[] for _ in range(domain_no)]
 
     for bc in bcs:
-        x_b, y_b, u_b, v_b = make_training_boundary_data_2d(size=bc.size, x_lb=bc.x_lb, x_rb=bc.x_rb, y_lb=bc.y_lb, y_rb=bc.y_rb, u=bc.u, v=bc.v)
+        if bc.is_circle:
+            x_b, y_b, u_b, v_b = make_training_boundary_data_2d_circle(size=bc.size, x_lb=bc.x_lb, x_rb=bc.x_rb, y_lb=bc.y_lb, y_rb=bc.y_rb, u=bc.u, v=bc.v)
+        else:
+            x_b, y_b, u_b, v_b = make_training_boundary_data_2d(size=bc.size, x_lb=bc.x_lb, x_rb=bc.x_rb, y_lb=bc.y_lb, y_rb=bc.y_rb, u=bc.u, v=bc.v)
         x_bs.append(x_b)
         y_bs.append(y_b)
         # if bc.y_lb == bc.y_rb:
             # v_b = torch.sin(np.pi * x_b).type(torch.FloatTensor)
         u_bs.append(u_b)
         v_bs.append(v_b)
-        x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv_x)
-        y_derivs.append(torch.ones(y_b.shape).type(torch.IntTensor) * bc.deriv_y)
+        u_x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv_u_x)
+        v_y_derivs.append(torch.ones(y_b.shape).type(torch.IntTensor) * bc.deriv_v_y)
+        u_y_derivs.append(torch.ones(y_b.shape).type(torch.IntTensor) * bc.deriv_u_y)
+        v_x_derivs.append(torch.ones(x_b.shape).type(torch.IntTensor) * bc.deriv_v_x)
+
+        # 0: compare u,v / 1: compare u / 2: compare v
+        if bc.only_compare_v:
+            bcs_compare_what.append(torch.ones(x_b.shape) * 2)
+        elif bc.only_compare_u:
+            bcs_compare_what.append(torch.ones(x_b.shape) * 1)
+        else:
+            bcs_compare_what.append(torch.zeros(x_b.shape))
+
+
 
     for pde in pdes:
-        x_f, y_f, u_f, v_f = make_training_collocation_data_2d(size=pde.size, x_lb=pde.x_lb, x_rb=pde.x_rb, y_lb=pde.y_lb, y_rb=pde.y_rb)
+        if pde.is_circle:
+            x_f, y_f, u_f, v_f = make_training_collocation_data_2d_circle(size=pde.size, x_lb=pde.x_lb, x_rb=pde.x_rb, y_lb=pde.y_lb, y_rb=pde.y_rb, inside=pde.inside)
+        else:
+            x_f, y_f, u_f, v_f = make_training_collocation_data_2d(size=pde.size, x_lb=pde.x_lb, x_rb=pde.x_rb, y_lb=pde.y_lb, y_rb=pde.y_rb)
         x_fs.append(x_f)
         y_fs.append(y_f)
         u_fs.append(u_f)
@@ -192,10 +258,14 @@ def train(model_path, figure_path):
         for j, (x_b, y_b) in enumerate(zip(x_bs, y_bs)):
             u_b = u_bs[j]
             v_b = v_bs[j]
-            x_deriv = x_derivs[j]
-            y_deriv = y_derivs[j]
+            u_x_deriv = u_x_derivs[j]
+            v_y_deriv = v_y_derivs[j]
+            u_y_deriv = u_y_derivs[j]
+            v_x_deriv = v_x_derivs[j]
             x = ( bcs[j].x_lb + bcs[j].x_rb ) / 2
             y = ( bcs[j].y_lb + bcs[j].y_rb ) / 2
+
+            compare_what = bcs_compare_what[j]
             
             
             if x_lb <= x <= x_rb and y_lb <= y <= y_rb:
@@ -204,8 +274,11 @@ def train(model_path, figure_path):
                 y_bs_train[i].append(y_b)
                 u_bs_train[i].append(u_b)
                 v_bs_train[i].append(v_b)
-                x_derivs_train[i].append(x_deriv)
-                y_derivs_train[i].append(y_deriv)
+                u_x_derivs_train[i].append(u_x_deriv)
+                v_y_derivs_train[i].append(v_y_deriv)
+                u_y_derivs_train[i].append(u_y_deriv)
+                v_x_derivs_train[i].append(v_x_deriv)
+                bcs_compare_what_train[i].append(compare_what)
         
         for j, (x_f, y_f) in enumerate(zip(x_fs, y_fs)):
             u_f = u_fs[j]
@@ -236,6 +309,31 @@ def train(model_path, figure_path):
     y_plt = torch.from_numpy(np.arange(global_lb_y, global_rb_y, (global_rb_y - global_lb_y) / 100))
 
 
+    for i in range(domain_no):
+        x_bs = x_bs_train[i]
+        y_bs = y_bs_train[i]
+        x_fs = x_fs_train[i]
+        y_fs = y_fs_train[i]
+
+        plt.figure(figsize=(6, 6))
+
+        for j in range(len(x_bs)):
+            x_b = x_bs[j].cpu().detach().numpy()
+            y_b = y_bs[j].cpu().detach().numpy()
+            plt.scatter(x_b, y_b, c='r', label='BCs')
+            
+
+        for j in range(len(x_fs)):
+            x_f = x_fs[j].cpu().detach().numpy()
+            y_f = y_fs[j].cpu().detach().numpy()
+            plt.scatter(x_f, y_f, c= 'b', label='PDEs')
+
+        # plt.legend()
+        plt.savefig(os.path.join(figure_path, "data_{}.png".format(i)))
+
+
+
+
     for epoch in range(epochs):
         for i in range(domain_no):
             optim = optims[i]
@@ -252,8 +350,12 @@ def train(model_path, figure_path):
             y_bs = y_bs_train[i]
             u_bs = u_bs_train[i]
             v_bs = v_bs_train[i]
-            x_derivs = x_derivs_train[i]
-            y_derivs = y_derivs_train[i]
+            u_x_derivs = u_x_derivs_train[i]
+            v_y_derivs = v_y_derivs_train[i]
+            u_y_derivs = u_y_derivs_train[i]
+            v_x_derivs = v_x_derivs_train[i]
+
+            bcs_compare_what = bcs_compare_what_train[i]
 
             x_fs = x_fs_train[i]
             y_fs = y_fs_train[i]
@@ -269,14 +371,39 @@ def train(model_path, figure_path):
                 y_b = y_b.cuda()
                 u_b = u_b.cuda()
                 v_b = v_b.cuda()
-                x_deriv = x_derivs[j]
-                y_deriv = y_derivs[j]
+                u_x_deriv = u_x_derivs[j]
+                v_y_deriv = v_y_derivs[j]
+                u_y_deriv = u_y_derivs[j]
+                v_x_deriv = v_x_derivs[j]
+                compare_what = bcs_compare_what[j]
                 # print("Boundary")
                 # print("x_max: {:.3f}, x_min: {:.3f}, y_max: {:.3f}, y_min: {:.3f}, u: {:.3f}, v: {:.3f}".format(torch.max(x_b).item(), torch.min(x_b).item(), torch.max(y_b).item(),  torch.min(y_b).item(), torch.max(u_b).item(), torch.max(v_b).item()))
                 # to be modified when the deriv. is greater than 0
-                aa = calc_deriv(x_b, model(x_b, y_b), x_deriv[0])
+                uv_model = model(x_b, y_b)
+                u_model = uv_model[:, 0]
+                v_model = uv_model[:, 1]
+                # print(u_x_deriv[0].item(), u_y_deriv[0].item(), v_x_deriv[0].item(), v_y_deriv[0].item())
+                u_model_x = calc_deriv(x_b, u_model, u_x_deriv[0])
+                v_model_x = calc_deriv(x_b, v_model, v_x_deriv[0])
+                u_model_x_y = calc_deriv(y_b, u_model_x, u_y_deriv[0]).reshape(-1, 1)
+                v_model_x_y = calc_deriv(y_b, v_model_x, v_y_deriv[0]).reshape(-1, 1)
+                # print("{:.3f}".format(u_model.item()))
+                # print("{:.3f}".format(u_model_x.item()))
+                # print("{:.3f}".format(u_model_x_y.item()))
+                # print("{:.3f}".format(v_model.item()))
+                # print("{:.3f}".format(v_model_x.item()))
+                # print("{:.3f}".format(v_model_x_y.item()))
 
-                loss_b += loss_func(calc_deriv(y_b, aa, y_deriv[0]), torch.cat((u_b, v_b), axis=1)) * w_b
+                # print("{:.3f}".format(u_model.item()), "{:.3f}".format(u_model_x_y.item()) ,"{:.3f}".format(v_model.item()), "{:.3f}".format(v_model_x_y.item()))
+                # print("{:.3f}".format(u_b.item()), "{:.3f}".format(v_b.item()))
+                if compare_what[0] == 0:
+                    loss_b += loss_func(u_model_x_y, u_b) * w_b
+                    loss_b += loss_func(v_model_x_y, v_b) * w_b
+                elif compare_what[0] == 1:
+                    loss_b += loss_func(u_model_x_y, u_b) * w_b
+                elif compare_what[0] == 2:
+                    loss_b += loss_func(v_model_x_y, v_b) * w_b
+                # loss_b += loss_func(calc_deriv(y_b, aa, v_y_deriv[0]), torch.cat((u_b, v_b), axis=1)) * w_b
             # print(loss_b)
 
             for j, (x_f, y_f) in enumerate(zip(x_fs, y_fs)):
@@ -303,10 +430,10 @@ def train(model_path, figure_path):
                 v_hat_x_x = calc_deriv(x_f, v_hat, 2)
                 v_hat_y = calc_deriv(y_f, v_hat, 1)
                 v_hat_y_y = calc_deriv(y_f, v_hat_y, 1)
-                # loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
-                # loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), v_f)
-                loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 10 * y_f), u_f)
-                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * y_f / 2) * torch.cos(np.pi * x_f) * 10 * x_f), v_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), v_f)
+                # loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 10 * y_f), u_f)
+                # loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * y_f / 2) * torch.cos(np.pi * x_f) * 10 * x_f), v_f)
                 loss_f *= w_f
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
