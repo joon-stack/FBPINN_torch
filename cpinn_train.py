@@ -20,7 +20,7 @@ def train(model_path, figure_path):
 
     # Points
     # points = [-1.0, 0.0 - dx, 0.0 + dx, 1.0]
-    points = [-1.0,1.0]
+    points = [-1.0,-0.5, 0.5, 1.0]
     # points = [-1.0, -0.5, 0.0, 0.5, 1.0]
     # points = [-0.5, 0.5]
     # points = [0.5, 1.0]
@@ -64,14 +64,14 @@ def train(model_path, figure_path):
     dw = 0.00001
     
     bcs = []
-        pdes = []
+    pdes = []
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=-1.0 + dw, u=0.0, deriv=2))
     bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=1.0 + dw, u=0.0, deriv=2))
     # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.0 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 + dw, u=0.0, deriv=1))
     # bcs.append(BCs(b_size, x=-0.5 + dw, u=0.0, deriv=0))
@@ -83,7 +83,7 @@ def train(model_path, figure_path):
     bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=0))
     bcs.append(BCs(b_size, x=1.0 - dw, u=0.0, deriv=2))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
-    bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=0))
+    # bcs.append(BCs(b_size, x=0.0 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=0))
     # bcs.append(BCs(b_size, x=0.5 - dw, u=0.0, deriv=1))
     # bcs.append(BCs(b_size, x=-0.5 - dw, u=0.0, deriv=0))
@@ -273,9 +273,9 @@ def train(model_path, figure_path):
                 # print(x_f, u_f, w1, w2)
                 zeros = torch.zeros(x_f.shape).cuda()
                 ones = torch.ones(x_f.shape).cuda()
-                # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * ( torch.where(0 > x_f, ones * torch.sin(-np.pi * x_f), zeros) + torch.where(0.25 < x_f, ones, zeros) * torch.where(0.75 > x_f, ones, zeros)), u_f) * w_f
+                loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * ( torch.where(0 > x_f, ones * torch.sin(-np.pi * x_f), zeros) + torch.where(0.25 < x_f, ones, zeros) * torch.where(0.75 > x_f, ones, zeros)), u_f) * w_f
                 # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2 * torch.cos(x_f * np.pi / 2), u_f) * w_f
-                loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2, u_f) * w_f
+                # loss_f += loss_func(calc_deriv(x_f, model(x_f), 4) * w1 - 1 * w2, u_f) * w_f
                 
                 # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))

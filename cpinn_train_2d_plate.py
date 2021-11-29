@@ -23,8 +23,8 @@ def train(model_path, figure_path):
     # points_y = [(-100.0, 1.0), (-1.0, 1.0)]
     points_x = [(-1.0, 1.0)]
     points_y = [(-1.0, 1.0)]
-    # points_x = [(-1.0, 0.0), (0.0, 1.0)]
-    # points_y = [(-1.0, 1.0), (-1.0, 1.0)]
+    points_x = [(-1.0, 0.0), (0.0, 1.0)]
+    points_y = [(-1.0, 1.0), (-1.0, 1.0)]
 
     # Set the number of domains
     domain_no = len(points_x)
@@ -73,24 +73,22 @@ def train(model_path, figure_path):
     dx = 0.0001
     
     bcs = []
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=2, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=2, deriv_y=0))
-    
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
+    bcs.append(BCs_plates(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
+    bcs.append(BCs_plates(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
+    bcs.append(BCs_plates(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=2, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=2, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    bcs.append(BCs_plates(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0 - dw, y_rb=-1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
+    bcs.append(BCs_plates(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=2))
 
-    bcs.append(BCs(b_size, x_lb=0.0 - dx, x_rb=0.0 - dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0 + dx, x_rb=0.0 + dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0 - dx, x_rb=0.0 - dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0 + dx, x_rb=0.0 + dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.0, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
     # bcs.append(BCs(b_size, x_lb=0.0-dx, x_rb=0.0-dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
     # bcs.append(BCs(b_size, x_lb=0.0+dx, x_rb=0.0+dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=0, deriv_y=0))
     # bcs.append(BCs(b_size, x_lb=0.0 - dx, x_rb=0.0 - dx, y_lb=-1.0 - dw, y_rb=1.0 - dw, u=0.0, v=0.0, deriv_x=2, deriv_y=0))
@@ -135,7 +133,7 @@ def train(model_path, figure_path):
 
     dms = model.domains
     
-    w_b = 1
+    w_b = 100
     w_f = 1
     w_i = 1
 
@@ -349,7 +347,7 @@ def train(model_path, figure_path):
                 u_hat_x_x_x_x = calc_deriv(x_f, u_hat, 4)
                 u_hat_y_y_y_y = calc_deriv(y_f, u_hat, 4)
                 u_hat_x_x_y_y = calc_deriv(y_f, calc_deriv(x_f, u_hat, 2), 2)
-                loss_f += loss_func(u_hat_x_x_x_x + 2 * u_hat_x_x_y_y + u_hat_y_y_y_y - 1 * (torch.cos(np.pi * y_f / 2) - torch.sin(np.pi * x_f)), u_f)
+                loss_f += loss_func(u_hat_x_x_x_x + 2 * u_hat_x_x_y_y + u_hat_y_y_y_y - 10 * (torch.cos(np.pi * y_f / 2) - torch.sin(np.pi * x_f)), u_f)
                 # loss_f += loss_func(u_hat_x_x_x_x + 2 * u_hat_x_x_y_y + u_hat_y_y_y_y - 1 , u_f)
                 # loss_f += loss_func(u_hat_x_x_x_x + 2 * u_hat_x_x_y_y + u_hat_y_y_y_y - abs((x-0.5) * (y*y-0.5)), u_f)
                 # loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 10 * y_f), u_f)

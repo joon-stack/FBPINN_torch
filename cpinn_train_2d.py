@@ -17,10 +17,10 @@ def train(model_path, figure_path):
     log_path = os.path.join(figure_path, 'log.txt')
 
     # Points
-    # points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
-    # points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
-    points_x = [(-1.0, 0.0), (0.0, 1.0)]
-    points_y = [(-1.0, 1.0), (-1.0, 1.0)]
+    points_x = [(-1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, 1.0)]
+    points_y = [(-1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, 1.0)]
+    # points_x = [(-1.0, 0.0), (0.0, 1.0)]
+    # points_y = [(-1.0, 1.0), (-1.0, 1.0)]
     # points_x = [(-1.0, 1.0)]
     # points_y = [(-1.0, 1.0)]
     # points_x = [(-1.0, 0.0)]
@@ -58,29 +58,51 @@ def train(model_path, figure_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Current device:", device)
 
-    b_size = 100
-    f_size = 10000 // 2
-    i_size = 100
+    b_size = 100 // 4
+    f_size = 10000 // 4
+    i_size = 100 
     epochs = 100000
     lr = 0.0001
     model.to(device)
     
-    dw = 0.0
-
 
     
     bcs = []
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=0.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=0.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=0.0, y_rb=1.0, u=0.1, v=0.1, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+
+
     
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
-    bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
-    bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
-    bcs.append(BCs(b_size, x_lb=-0.25, x_rb=-0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0,))
-    bcs.append(BCs(b_size, x_lb=0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
-    bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.0, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
-    bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.25, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
-    bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.0, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
-    bcs.append(BCs(b_size, x_lb=-0.0, x_rb=0.25, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=0.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=-1.0, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-1.0, x_rb=-1.0, y_lb=0.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=-1.0, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=1.0, x_rb=1.0, y_lb=0.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=1, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=-0.25, y_lb=-0.25, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0,))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=-0.25, y_lb=0.0, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0,))
+    # bcs.append(BCs(b_size, x_lb=0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=0.25, x_rb=0.25, y_lb=0.0, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.0, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
+    # bcs.append(BCs(b_size, x_lb=0.0, x_rb=0.25, y_lb=0.25, y_rb=0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1 ))
+    # bcs.append(BCs(b_size, x_lb=-0.25, x_rb=0.0, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
+    # bcs.append(BCs(b_size, x_lb=-0.0, x_rb=0.25, y_lb=-0.25, y_rb=-0.25, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=1))
     # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=0, deriv_v_y=0))
     
     # bcs.append(BCs(b_size, x_lb=0.0, x_rb=1.0, y_lb=1.0, y_rb=1.0, u=0.0, v=0.0, deriv_u_x=0, deriv_u_y=0, deriv_v_x=1, deriv_v_y=0))
@@ -105,15 +127,23 @@ def train(model_path, figure_path):
 
     pdes = []
     # w1 = lambda, w2: mu
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-0.25))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=0.25, y_rb=1.0))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=-0.25, y_rb=0.25))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=-0.25, y_rb=0.25))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=0.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=-1.0, x_rb=0.0, y_lb=0.0, y_rb=1.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=0.0))
+    pdes.append(PDEs(f_size, w1=0, w2=1, fx=-1, fy=-1, x_lb=0.0, x_rb=1.0, y_lb=0.0, y_rb=1.0))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=0.0, y_lb=-1.0, y_rb=-0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=0.0, y_lb=0.25, y_rb=1.0))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.0, x_rb=1.0, y_lb=-1.0, y_rb=-0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.0, x_rb=1.0, y_lb=0.25, y_rb=1.0))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=-0.25, y_rb=0.0))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=0.0, y_rb=0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=0.0, y_rb=0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=-0.25, y_rb=0.0))
 
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-0.25))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=0.25, y_rb=1.0))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=-0.25, y_rb=0.25))
-    pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=-0.25, y_rb=0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=-1.0, y_rb=-0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=1.0, y_lb=0.25, y_rb=1.0))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-1.0, x_rb=-0.25, y_lb=-0.25, y_rb=0.25))
+    # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=0.25, x_rb=1.0, y_lb=-0.25, y_rb=0.25))
     # pdes.append(PDEs(f_size, w1=0, w2=1, fx=1, fy=0, x_lb=-0.25, x_rb=0.25, y_lb=-0.25, y_rb=0.25, is_circle=True, inside=False))
     
     # fpath = './models/2d_plane_stress_conc_15.data'
@@ -202,6 +232,8 @@ def train(model_path, figure_path):
     u_fs_train = [[] for _ in range(domain_no)]
     v_fs_train = [[] for _ in range(domain_no)]
 
+    x_is_train = [[] for _ in range(domain_no)]
+    y_is_train = [[] for _ in range(domain_no)]
     
     pdes_weights = []
     pdes_weights_train = [{} for _ in range(domain_no)]
@@ -233,8 +265,7 @@ def train(model_path, figure_path):
         else:
             bcs_compare_what.append(torch.zeros(x_b.shape))
 
-
-
+        
     for pde in pdes:
         if pde.is_circle:
             x_f, y_f, u_f, v_f = make_training_collocation_data_2d_circle(size=pde.size, x_lb=pde.x_lb, x_rb=pde.x_rb, y_lb=pde.y_lb, y_rb=pde.y_rb, inside=pde.inside)
@@ -252,7 +283,7 @@ def train(model_path, figure_path):
         y_lb = dm['y_lb']
         y_rb = dm['y_rb']
 
-        print(x_lb, x_rb, y_lb, y_rb)
+        # print(x_lb, x_rb, y_lb, y_rb)
         
 
         for j, (x_b, y_b) in enumerate(zip(x_bs, y_bs)):
@@ -297,7 +328,55 @@ def train(model_path, figure_path):
                 pdes_weights_train[i]['w2'] = pde_weights[1]
                 pdes_weights_train[i]['fx'] = pde_weights[2]
                 pdes_weights_train[i]['fy'] = pde_weights[3]
+        
                 
+        bds = model.boundaries
+        hole = 0.0
+        for bd in bds:
+            x_lb = bd['x_lb']
+            x_rb = bd['x_rb']
+            y_lb = bd['y_lb']
+            y_rb = bd['y_rb']
+            bd_adj_dm = bd['domains']
+
+            if x_lb == x_rb:
+                if y_lb <= -hole <= y_rb:
+                    data_1 = make_training_interface_data(size=(i_size,1), lb=y_lb, rb=-hole)
+                else:
+                    data_1 = None
+                if y_lb <= hole <= y_rb:
+                    data_2 = make_training_interface_data(size=(i_size,1), lb=hole, rb=y_rb)
+                else:
+                    data_2 = None
+                if data_1 != None and data_2 != None:
+                    y_i = torch.cat((data_1, data_2))
+                elif data_1 != None:
+                    y_i = data_1
+                elif data_2 != None:
+                    y_i = data_2
+                x_i = torch.ones(y_i.shape).requires_grad_(True) * x_lb
+            elif y_lb == y_rb:
+                if x_lb <= -hole <= x_rb:
+                    data_1 = make_training_interface_data(size=(i_size,1), lb=x_lb, rb=-hole)
+                else:
+                    data_1 = None
+                if x_lb <= hole <= x_rb:
+                    data_2 = make_training_interface_data(size=(i_size,1), lb=hole, rb=x_rb)
+                else:
+                    data_2 = None
+                if data_1 != None and data_2 != None:
+                    x_i = torch.cat((data_1, data_2))
+                elif data_1 != None:
+                    x_i = data_1
+                elif data_2 != None:
+                    x_i = data_2
+                y_i = torch.ones(x_i.shape).requires_grad_(True) * y_lb
+            for d in bd_adj_dm:
+                x_is_train[d].append(x_i)
+                y_is_train[d].append(y_i)
+
+                
+
     loss_save = np.inf
     
     loss_b_plt = [[] for _ in range(domain_no)]
@@ -314,6 +393,8 @@ def train(model_path, figure_path):
         y_bs = y_bs_train[i]
         x_fs = x_fs_train[i]
         y_fs = y_fs_train[i]
+        x_is = x_is_train[i]
+        y_is = y_is_train[i]
 
         plt.figure(figsize=(6, 6))
 
@@ -326,7 +407,13 @@ def train(model_path, figure_path):
         for j in range(len(x_fs)):
             x_f = x_fs[j].cpu().detach().numpy()
             y_f = y_fs[j].cpu().detach().numpy()
-            plt.scatter(x_f, y_f, c= 'b', label='PDEs')
+            plt.scatter(x_f, y_f, c='b', label='PDEs')
+
+        for j in range(len(x_is)):
+            x_i = x_is[j].cpu().detach().numpy()
+            y_i = y_is[j].cpu().detach().numpy()
+            print(x_i.max(), x_i.min())
+            plt.scatter(x_i, y_i, c='g', label="Interfaces")
 
         # plt.legend()
         plt.savefig(os.path.join(figure_path, "data_{}.png".format(i)))
@@ -362,6 +449,9 @@ def train(model_path, figure_path):
             u_fs = u_fs_train[i]
             v_fs = v_fs_train[i]
             pde_weights = pdes_weights_train[i]
+
+            x_is = x_is_train[i]
+            y_is = y_is_train[i]
 
             # print("Domain {}".format(i))
             for j, (x_b, y_b) in enumerate(zip(x_bs, y_bs)):
@@ -430,20 +520,28 @@ def train(model_path, figure_path):
                 v_hat_x_x = calc_deriv(x_f, v_hat, 2)
                 v_hat_y = calc_deriv(y_f, v_hat, 1)
                 v_hat_y_y = calc_deriv(y_f, v_hat_y, 1)
-                loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f)
-                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), v_f)
-                # loss_f = loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 10 * y_f), u_f)
-                # loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * y_f / 2) * torch.cos(np.pi * x_f) * 10 * x_f), v_f)
-                loss_f *= w_f
-                # print("PDEs---------------------")
+                # loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx), u_f) * w_f
+                # loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy), v_f) * w_f
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(x_f, (u_hat_x + v_hat_y), 1) + w2 * (u_hat_x_x + u_hat_y_y) + fx * torch.cos(np.pi * y_f / 2) * torch.sin(np.pi * x_f) * 1 * y_f), u_f)
+                loss_f += loss_func( ((w1 + w2) * calc_deriv(y_f, (u_hat_x + v_hat_y), 1) + w2 * (v_hat_x_x + v_hat_y_y) + fy * torch.sin(np.pi * y_f / 2) * torch.cos(np.pi * x_f) * 1 * x_f), v_f)             # print("PDEs---------------------")
                 # print("w1: {}, w2: {}".format(w1, w2))
                 # print(calc_deriv(x_f, model(x_f), 4).item())
                 # print(calc_deriv(x_f, model(x_f), 4).item() * w1 - 1÷ * w2, u_f.item())
 
                 # print(x_f, u_f, w1, w2)
 
+            if domain_no > 1:
+                for j, _ in enumerate(zip(x_is, y_is)):
+                    x_i = x_is[j]
+                    y_i = y_is[j]
+                    x_i = x_i.cuda()
+                    y_i = y_i.cuda()
+                    loss_i += model.get_interface_error_2d(x_i, y_i) * w_i
 
-            loss_i = model.get_boundary_error_2d(i_size) * w_i
+            # print(loss_i.shape)
+
+
+            # loss_i = model.get_boundary_error_2d(i_size) * w_i
             # loss_i = 0.0 
 
             loss = loss_b + loss_f + loss_i
